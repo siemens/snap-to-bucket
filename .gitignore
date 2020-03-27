@@ -1,0 +1,12 @@
+# virtual env
+/venv/
+/.venv/
+
+# IDE
+.project
+.pydevproject
+.settings/
+tags
+
+# Python
+*__pycache__/

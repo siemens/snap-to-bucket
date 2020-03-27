@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra <mishra.gaurav@siemens.com>
+#
+# SPDX-License-Identifier: MIT
+# Manifest syntax https://docs.python.org/2/distutils/sourcedist.html
+
+recursive-exclude __pycache__  *.pyc *.pyo *.orig
+
+exclude *.git*
+exclude *.coveragerc
+exclude README*
+
+include requirements*.*
+exclude requirements-dev.*
+include *.py
+
+prune venv
+prune .venv
+prune test*
