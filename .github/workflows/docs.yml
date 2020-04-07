@@ -1,0 +1,43 @@
+name: "snap_to_bucket docs"
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    container:
+      image: python:3.8-slim
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install host dependencies
+        run: |
+          apt-get -qq update
+          apt-get install -qq gcc git nmap
+          rm -rf /var/lib/apt/lists/*
+      - name: Install Python dependencies
+        run: pip install sphinx boto3 psutil
+      - name: Build sphinx
+        run: sphinx-build doc-sources html
+      - name: Commit documentation changes
+        run: |
+          git clone https://github.com/siemens/snap-to-bucket.git --branch gh-pages --single-branch gh-pages
+          cp -r html/* gh-pages/
+          cd gh-pages
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          # Overwrite the earlier commit
+          git commit --amend --no-edit -m "Update documentation" -a || true
+          # The above command will fail if no changes were present, so we ignore
+          # the return code.
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          branch: gh-pages
+          directory: gh-pages
+          force: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+

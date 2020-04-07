@@ -1,18 +1,14 @@
 # snap_to_bucket
 
+![snap_to_bucket docs](https://github.com/siemens/snap-to-bucket/workflows/snap_to_bucket%20docs/badge.svg)
+
 This tool allows to move data from AWS snapshots to S3 buckets.
 
-### Install dependencies
+### Installation
 
 ```console
 $ python3 -m pip install -U pipenv
-$ pipenv install -e .
-```
-
-### Install package
-
-```console
-$ pipenv run pip install .
+$ pipenv install --dev --editable .
 ```
 
 ### Requirements
@@ -99,7 +95,7 @@ script needs to mount/unmount volumes.
 
 - Runing from source
 ```console
-# pipenv run ./src/snap_to_bucket/run.py --bucket <bucket>
+# pipenv run snap_to_bucket --bucket <bucket>
 ```
 - Runing from install
 ```console
@@ -114,6 +110,9 @@ To change the type of volume, use `--type` option (like `io1` for higher
 throughput).
 
 The script can also compress the tar with gzip. Use the `--gzip` option.
+
+The default storage class used for S3 objects will be STANDARD. To use other
+classes like STANDARD_IA or even GLACIER, use `--storage-class` option.
 
 If you want to delete the snapshot once they are transferred, use `-d\--delete`
 option. Use this option with caution as this step cannot be undone.
@@ -234,7 +233,7 @@ for i in /sys /proc /run /dev; do sudo umount /mnt/snapshot$i; done
 Run the script with `-r\--restore` flag and provide the bucket and the key.
 - Runing from source
 ```console
-# pipenv run ./src/snap_to_bucket/run.py --restore --bucket <bucket> --key <key>
+# pipenv run snap_to_bucket --restore --bucket <bucket> --key <key>
 ```
 - Runing from install
 ```console

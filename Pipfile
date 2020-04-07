@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 boto3 = "*"
 psutil = "*"
+snap-to-bucket = {path = "."}
 
 [dev-packages]
-
+sphinx = "*"
+snap-to-bucket = {editable = true,path = "."}
