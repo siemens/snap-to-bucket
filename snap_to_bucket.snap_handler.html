@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>snap_to_bucket.snap_handler module &#8212; snap_to_bucket 1.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Migrate" href="setupmigrate.html" />
+    <link rel="prev" title="snap_to_bucket.s3_handler module" href="snap_to_bucket.s3_handler.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-snap_to_bucket.snap_handler">
+<span id="snap-to-bucket-snap-handler-module"></span><h1>snap_to_bucket.snap_handler module<a class="headerlink" href="#module-snap_to_bucket.snap_handler" title="Permalink to this headline">¶</a></h1>
+<p>SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra &lt;<a class="reference external" href="mailto:mishra&#46;gaurav&#37;&#52;&#48;siemens&#46;com">mishra<span>&#46;</span>gaurav<span>&#64;</span>siemens<span>&#46;</span>com</a>&gt;</p>
+<p>SPDX-License-Identifier: MIT</p>
+<dl class="py class">
+<dt id="snap_to_bucket.snap_handler.SnapToBucket">
+<em class="property">class </em><code class="sig-prename descclassname">snap_to_bucket.snap_handler.</code><code class="sig-name descname">SnapToBucket</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bucket</span></em>, <em class="sig-param"><span class="n">tag</span><span class="o">=</span><span class="default_value">'snap-to-bucket'</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">volume_type</span><span class="o">=</span><span class="default_value">'gp2'</span></em>, <em class="sig-param"><span class="n">storage_class</span><span class="o">=</span><span class="default_value">'STANDARD'</span></em>, <em class="sig-param"><span class="n">mount_point</span><span class="o">=</span><span class="default_value">'/mnt/snaps'</span></em>, <em class="sig-param"><span class="n">delete_snap</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">restore</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">restore_key</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">restore_boot</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/snap_handler.html#SnapToBucket"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Main class of the tool</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bucket</strong> – Bucket to use</p></li>
+<li><p><strong>tag</strong> – Tag of snapshots for filtering</p></li>
+<li><p><strong>verbose</strong> – Verbosity level (0-3)</p></li>
+<li><p><strong>volume_type</strong> – Type of new EBS volume to use</p></li>
+<li><p><strong>storage_class</strong> – Storage class of S3 object</p></li>
+<li><p><strong>mount_point</strong> – Mount point to mount new volumes to</p></li>
+<li><p><strong>delete_snap</strong> – True to delete snapshot after migration</p></li>
+<li><p><strong>restore</strong> – Is this a restore request?</p></li>
+<li><p><strong>restore_key</strong> – Key of the tar to be restored</p></li>
+<li><p><strong>restore_boot</strong> – Was the snapshot, being restored, bootable?</p></li>
+<li><p><a class="reference internal" href="snap_to_bucket.run.html#snap_to_bucket.run.split_size" title="snap_to_bucket.run.split_size"><strong>split_size</strong></a> – Size in bytes to split tar at</p></li>
+<li><p><strong>gzip</strong> – True to compress tar with gzip</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__create_attach_volume">
+<code class="sig-name descname">_SnapToBucket__create_attach_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snap</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__create_attach_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create and attach a new volume from given snapshot</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>snap</strong> (<em>dict</em><em>(</em><em>)</em>) – Snapshot to be mounted</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Newly created volume ID</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__move_data">
+<code class="sig-name descname">_SnapToBucket__move_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snapshot</span></em>, <em class="sig-param"><span class="n">size</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__move_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Upload the data from snapshot to S3</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>snapshot</strong> (<em>dict</em><em>(</em><em>)</em>) – Snapshot to be uploaded</p></li>
+<li><p><strong>size</strong> (<em>integer</em>) – Size of the mounted partition</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__restore_snapshot">
+<code class="sig-name descname">_SnapToBucket__restore_snapshot</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__restore_snapshot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Restore the snapshot from S3</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.snap_handler.SnapToBucket.initiate_migration">
+<code class="sig-name descname">initiate_migration</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/snap_handler.html#SnapToBucket.initiate_migration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket.initiate_migration" title="Permalink to this definition">¶</a></dt>
+<dd><p>The brains of the process</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.snap_handler.SnapToBucket.perform_gzip">
+<code class="sig-name descname">perform_gzip</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/snap_handler.html#SnapToBucket.perform_gzip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket.perform_gzip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the flag to compress tar with gzip</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.snap_handler.SnapToBucket.update_proxy">
+<code class="sig-name descname">update_proxy</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">proxy</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">noproxy</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/snap_handler.html#SnapToBucket.update_proxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket.update_proxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the http_proxy and no_proxy environment variables</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.snap_handler.SnapToBucket.update_split_size">
+<code class="sig-name descname">update_split_size</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">split</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/snap_handler.html#SnapToBucket.update_split_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket.update_split_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the split size of tar</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>split</strong> (<em>float</em>) – New split size</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">snap_to_bucket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="snap_to_bucket.html">snap_to_bucket package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="snap_to_bucket.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="snap_to_bucket.html#module-snap_to_bucket">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="setupmigrate.html">Migrate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="recovery.html">Recovery</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="snap_to_bucket.html">snap_to_bucket package</a><ul>
+      <li>Previous: <a href="snap_to_bucket.s3_handler.html" title="previous chapter">snap_to_bucket.s3_handler module</a></li>
+      <li>Next: <a href="setupmigrate.html" title="next chapter">Migrate</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Siemens AG.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/snap_to_bucket.snap_handler.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

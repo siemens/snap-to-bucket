@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Recovery &#8212; snap_to_bucket 1.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Migrate" href="setupmigrate.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="recovery">
+<span id="id1"></span><h1>Recovery<a class="headerlink" href="#recovery" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="manually">
+<h2>Manually<a class="headerlink" href="#manually" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><dl class="simple">
+<dt>Create a new volume of the desired size in AWS and attach to an instance.</dt><dd><ul class="simple">
+<li><p>You can also check for <code class="docutils literal notranslate"><span class="pre">x-amz-meta-disc-size</span></code> metadata attached to the S3
+object to get the estimated size of unpacked files.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>Download the snapshot from S3 to the instance.</p></li>
+<li><dl class="simple">
+<dt>Partition the disk</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">printf</span> <span class="pre">&quot;label:</span> <span class="pre">dos\ntype=83\n&quot;</span> <span class="pre">|</span> <span class="pre">sudo</span> <span class="pre">sfdisk</span> <span class="pre">&lt;device&gt;</span></code> if the snapshot
+was not bootable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">printf</span> <span class="pre">&quot;label:</span> <span class="pre">dos\ntype=83,</span> <span class="pre">bootable\n&quot;</span> <span class="pre">|</span> <span class="pre">sudo</span> <span class="pre">sfdisk</span> <span class="pre">&lt;device&gt;</span></code> if the
+snapshot was bootable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">partprobe</span> <span class="pre">&lt;device&gt;</span></code> to let know the kernel of new partition table.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Format the disk</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">mke2fs</span> <span class="pre">-t</span> <span class="pre">ext4</span> <span class="pre">&lt;device_partition&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Mount the partition</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">mount</span> <span class="pre">&lt;device_partition&gt;</span> <span class="pre">/mnt/snapshot</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Untar the downloaded file</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">tar</span> <span class="pre">--extract</span> <span class="pre">--verbose</span> <span class="pre">--file</span> <span class="pre">&lt;tar_location&gt;</span> <span class="pre">-C</span> <span class="pre">/mnt/snapshot</span> <span class="pre">--preserve</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Update the fstab</dt><dd><ol class="arabic simple">
+<li><p>Check the fstab from <code class="docutils literal notranslate"><span class="pre">/mnt/snapshot/etc/fstab</span></code></p></li>
+<li><dl class="simple">
+<dt>If disk was mounted from <code class="docutils literal notranslate"><span class="pre">Label</span></code></dt><dd><ul class="simple">
+<li><p>Update the label of new partition <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">e2label</span> <span class="pre">&lt;device&gt;</span> <span class="pre">&lt;label&gt;</span></code></p></li>
+<li><p>Check if the label was updated <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">e2label</span> <span class="pre">&lt;device&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>If the disk was mounted using UUID</dt><dd><ul class="simple">
+<li><p>Get the UUID of the new device <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">blkid</span></code></p></li>
+<li><p>Edit the <code class="docutils literal notranslate"><span class="pre">/mnt/snapshot/etc/fstab</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ol>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Update the grub if snapshot was bootable</dt><dd><ol class="arabic simple">
+<li><dl class="simple">
+<dt>Mount the required devices</dt><dd><p><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">i</span> <span class="pre">in</span> <span class="pre">/sys</span> <span class="pre">/proc</span> <span class="pre">/run</span> <span class="pre">/dev;</span> <span class="pre">do</span> <span class="pre">sudo</span> <span class="pre">mount</span> <span class="pre">--bind</span> <span class="pre">$i</span> <span class="pre">/mnt/snapshot$i;</span> <span class="pre">done</span></code></p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>ChRoot to mounted location</dt><dd><p><code class="docutils literal notranslate"><span class="pre">chroot</span> <span class="pre">/mnt/snapshot</span></code></p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Reinstall and update grub</dt><dd><p><code class="docutils literal notranslate"><span class="pre">grub-install</span> <span class="pre">&lt;device&gt;</span></code>
+<code class="docutils literal notranslate"><span class="pre">update-grub</span></code></p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Unmount the devices</dt><dd><p><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">i</span> <span class="pre">in</span> <span class="pre">/sys</span> <span class="pre">/proc</span> <span class="pre">/run</span> <span class="pre">/dev;</span> <span class="pre">do</span> <span class="pre">sudo</span> <span class="pre">umount</span> <span class="pre">/mnt/snapshot$i;</span> <span class="pre">done</span></code></p>
+</dd>
+</dl>
+</li>
+</ol>
+</dd>
+</dl>
+</li>
+<li><p>Unmount and detach the volume.</p></li>
+</ol>
+</div>
+<div class="section" id="from-script-experimental">
+<h2>From script (experimental)<a class="headerlink" href="#from-script-experimental" title="Permalink to this headline">¶</a></h2>
+<p>Run the script with <code class="docutils literal notranslate"><span class="pre">-r\--restore</span></code> flag and provide the bucket and the key.
+* Runing from source</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pipenv run snap_to_bucket --restore --bucket &lt;bucket&gt; --key &lt;key&gt;
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Runing from install</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>snap_to_bucket --restore --bucket &lt;bucket&gt; --key &lt;key&gt;
+</pre></div>
+</div>
+<p><strong>Note:</strong> The script will create new volume of size 25% more than the size of
+tar or <code class="docutils literal notranslate"><span class="pre">x-amz-meta-disc-size</span></code> metadata (if available).</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">--boot</span></code> flag if the snapshot to be restored was a bootable volume.</p>
+<p>Restore accepts other options <code class="docutils literal notranslate"><span class="pre">--type</span></code> and <code class="docutils literal notranslate"><span class="pre">-m/--mount</span></code>.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">snap_to_bucket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="snap_to_bucket.html">snap_to_bucket package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setupmigrate.html">Migrate</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Recovery</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#manually">Manually</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#from-script-experimental">From script (experimental)</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="setupmigrate.html" title="previous chapter">Migrate</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Siemens AG.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/recovery.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

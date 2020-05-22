@@ -1,0 +1,495 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>snap_to_bucket.s3_handler &#8212; snap_to_bucket 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for snap_to_bucket.s3_handler</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra &lt;mishra.gaurav@siemens.com&gt;</span>
+
+<span class="sd">SPDX-License-Identifier: MIT</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Siemens AG&#39;</span>
+
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="n">PIPE</span><span class="p">,</span> <span class="n">Popen</span>
+
+<span class="kn">import</span> <span class="nn">boto3</span>
+<span class="kn">import</span> <span class="nn">psutil</span>
+
+
+<div class="viewcode-block" id="ProgressPercentage"><a class="viewcode-back" href="../../snap_to_bucket.s3_handler.html#snap_to_bucket.s3_handler.ProgressPercentage">[docs]</a><span class="k">class</span> <span class="nc">ProgressPercentage</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Progress percentage printer</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_size</span> <span class="o">=</span> <span class="n">size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seen_so_far</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_amount</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_seen_so_far</span> <span class="o">+=</span> <span class="n">bytes_amount</span>
+            <span class="n">percentage</span> <span class="o">=</span> <span class="nb">round</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_seen_so_far</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloading </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_filename</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">percentage</span><span class="si">}</span><span class="s2">% &quot;</span> <span class="o">+</span>
+                             <span class="s2">&quot;done </span><span class="se">\r</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="S3Handler"><a class="viewcode-back" href="../../snap_to_bucket.s3_handler.html#snap_to_bucket.s3_handler.S3Handler">[docs]</a><span class="k">class</span> <span class="nc">S3Handler</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class to handle communications with S3 services</span>
+
+<span class="sd">    :ivar s3client: S3 client from boto3</span>
+<span class="sd">    :ivar bucket: Name of the bucket to use</span>
+<span class="sd">    :ivar verbose: Verbosity level (0-3)</span>
+<span class="sd">    :ivar temp_download: Path of the location where object from S3 is stored</span>
+<span class="sd">    :ivar restore_partition_size: Size of partition being restored</span>
+<span class="sd">    :ivar split_size: Size in bytes to split tar at</span>
+<span class="sd">    :ivar gzip: True to compress tar with gzip</span>
+<span class="sd">    :ivar storage_class: Storage class of S3 object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">split_size</span><span class="o">=</span><span class="mf">5497558138880.0</span><span class="p">,</span> <span class="n">gzip</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">storage_class</span><span class="o">=</span><span class="s2">&quot;STANDARD&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializer for the class attributes.</span>
+
+<span class="sd">        Additionally, check if the provided bucket can be accessed.</span>
+
+<span class="sd">        :param bucket: Bucket to use</span>
+<span class="sd">        :type bucket: string</span>
+<span class="sd">        :param split_size: Split size of tar</span>
+<span class="sd">        :type split_size: float</span>
+<span class="sd">        :param gzip: True to compress tar with gzip</span>
+<span class="sd">        :type gzip: boolean</span>
+<span class="sd">        :param storage_class: Storage class of S3 object</span>
+<span class="sd">        :type storage_class: string</span>
+<span class="sd">        :param verbose: Verbosity level (0-3)</span>
+<span class="sd">        :type verbose: integer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span> <span class="o">=</span> <span class="n">bucket</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__check_bucket_accessiblity</span><span class="p">(</span><span class="n">bucket</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">split_size</span> <span class="o">=</span> <span class="n">split_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gzip</span> <span class="o">=</span> <span class="n">gzip</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_class</span> <span class="o">=</span> <span class="n">storage_class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+
+    <span class="k">def</span> <span class="nf">__check_bucket_accessiblity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if the bucket can be accessed</span>
+
+<span class="sd">        :param bucket: Bucket to check</span>
+<span class="sd">        :type bucket: string</span>
+
+<span class="sd">        :raises Exception: If the bucket can&#39;t be accessed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">head_bucket</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="n">bucket</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;ResponseMetadata&#39;</span><span class="p">][</span><span class="s1">&#39;HTTPStatusCode&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to access bucket &#39;</span><span class="si">{</span><span class="n">bucket</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span>
+
+    <span class="k">def</span> <span class="nf">__get_object_count</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the count of objects under given key</span>
+
+<span class="sd">        This function also assigns value to attribute ``restore_partition_size``.</span>
+<span class="sd">        If the object has meta data ``x-amz-meta-disc-size`` and value if</span>
+<span class="sd">        greater than 1, partition size is assigned to its value.</span>
+<span class="sd">        Otherwise, partition size is assigned value of content length</span>
+
+<span class="sd">        :param key: Object key to check</span>
+<span class="sd">        :type key: string</span>
+
+<span class="sd">        :return: Number of objects with ``key`` as the prefix</span>
+<span class="sd">        :rtype: integer</span>
+
+<span class="sd">        :raises Exception: If the objects can&#39;t be accessed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">list_objects_v2</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+                                                    <span class="n">Prefix</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;ResponseMetadata&#39;</span><span class="p">][</span><span class="s1">&#39;HTTPStatusCode&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">200</span> <span class="ow">or</span> <span class="s1">&#39;Contents&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span>
+            <span class="n">objects</span> <span class="o">=</span> <span class="p">[</span><span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Contents&#39;</span><span class="p">]]</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">head_object</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+                                                 <span class="n">Key</span><span class="o">=</span><span class="n">objects</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;Key&#39;</span><span class="p">])</span>
+            <span class="n">partition_size</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="s1">&#39;x-amz-meta-disc-size&#39;</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Metadata&#39;</span><span class="p">]:</span>
+                <span class="n">partition_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                    <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Metadata&#39;</span><span class="p">][</span><span class="s1">&#39;x-amz-meta-disc-size&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">partition_size</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">partition_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;Size&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">objects</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">restore_partition_size</span> <span class="o">=</span> <span class="n">partition_size</span>
+            <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to access key &#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&#39; in bucket &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">,</span>
+                  <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span>
+
+    <span class="k">def</span> <span class="nf">__byte_checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the checksum for the given bytes</span>
+
+<span class="sd">        :param data: Data to calculate checksum for</span>
+<span class="sd">        :type data: byte</span>
+
+<span class="sd">        :return: The Base64 encoded MD5 checksum</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">md_obj</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
+        <span class="n">md_obj</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">md_obj</span><span class="o">.</span><span class="n">digest</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__get_key_uploadid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">partno</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate the key and uploadid for a snapshot</span>
+
+<span class="sd">        :param snapshot: Snapshot to get the key for</span>
+<span class="sd">        :type snapshot: dict()</span>
+<span class="sd">        :param size: Size of mounted partition</span>
+<span class="sd">        :type size: integer</span>
+<span class="sd">        :param partno: Part no of the upload (-1 for single part upload)</span>
+<span class="sd">        :type partno: integer</span>
+
+<span class="sd">        :return: S3 key and uploadid for the snapshot</span>
+<span class="sd">        :rtype: list()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">meta_data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;application/x-tar&#39;</span>
+        <span class="n">timestr</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">_%H-%M-%S-</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;+&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;snap/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">timestr</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">partno</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.tar&quot;</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gzip</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.gz&quot;</span>
+                <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;application/gzip&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">-part</span><span class="si">{</span><span class="n">partno</span><span class="si">}</span><span class="s2">.tar&quot;</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gzip</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.gz&quot;</span>
+                <span class="n">content_type</span> <span class="o">=</span> <span class="s1">&#39;application/gzip&#39;</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;x-amz-meta-disc-size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">create_multipart_upload</span><span class="p">(</span>
+            <span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+            <span class="n">ContentType</span><span class="o">=</span><span class="n">content_type</span><span class="p">,</span>
+            <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+            <span class="n">Metadata</span><span class="o">=</span><span class="n">meta_data</span><span class="p">,</span>
+            <span class="n">StorageClass</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_class</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">res</span><span class="p">[</span><span class="s1">&#39;UploadId&#39;</span><span class="p">])</span>
+
+<div class="viewcode-block" id="S3Handler.initiate_upload"><a class="viewcode-back" href="../../snap_to_bucket.s3_handler.html#snap_to_bucket.s3_handler.S3Handler.initiate_upload">[docs]</a>    <span class="k">def</span> <span class="nf">initiate_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start multipart upload</span>
+
+<span class="sd">        1. Initialize the variables</span>
+<span class="sd">            1. If the upload can be done in one go, set partno as -1</span>
+<span class="sd">        2. Get the first key and upload id</span>
+<span class="sd">        3. Create a tar process</span>
+<span class="sd">        4. Read a chunk (max 5 GB or available RAM size - 50 MB of overhead or</span>
+<span class="sd">        remaining size before split occurs)</span>
+<span class="sd">            1. Have read enough data for split</span>
+<span class="sd">                1. Finish the upload, reset the counters</span>
+<span class="sd">                2. If more data to read, get new key and upload id.</span>
+<span class="sd">                3. Otherwise break.</span>
+<span class="sd">            2. Calculate new chunk size to be read</span>
+<span class="sd">            3. Read the chunk, update the counters and get the checksum of the</span>
+<span class="sd">                chunk</span>
+<span class="sd">            4. Upload part and add returned Etag to list</span>
+<span class="sd">        4. Finish the upload</span>
+
+<span class="sd">        If upload fails in between, abort the upload</span>
+
+<span class="sd">        :param snapshot: Snapshot to be uploaded</span>
+<span class="sd">        :type snapshot: dict()</span>
+<span class="sd">        :param path: Path of the mounted directory</span>
+<span class="sd">        :type path: string</span>
+<span class="sd">        :param size: Size of the partition (attached as meta info)</span>
+<span class="sd">        :type size: integer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">uploaded_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">tar_read_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">fifty_mb</span> <span class="o">=</span> <span class="mi">50</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">five_gb</span> <span class="o">=</span> <span class="p">(</span><span class="mi">5</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">**</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="n">free_mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">available</span>
+        <span class="k">if</span> <span class="n">free_mem</span> <span class="o">&gt;</span> <span class="n">five_gb</span><span class="p">:</span>
+            <span class="n">free_mem</span> <span class="o">=</span> <span class="n">five_gb</span>
+        <span class="n">max_chunk</span> <span class="o">=</span> <span class="n">free_mem</span> <span class="o">-</span> <span class="n">fifty_mb</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_size</span> <span class="o">&gt;=</span> <span class="n">size</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Uploading snapshot as a single file as &quot;</span> <span class="o">+</span>
+                      <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">split_size</span><span class="si">}</span><span class="s2"> &gt;= </span><span class="si">{</span><span class="n">size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">partno</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">partno</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">uploadid</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_key_uploadid</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">partno</span><span class="p">)</span>
+        <span class="n">tar_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;tar&quot;</span><span class="p">,</span> <span class="s2">&quot;--directory&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">&quot;--create&quot;</span><span class="p">,</span>
+                             <span class="s2">&quot;--preserve-permissions&quot;</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">read_process</span> <span class="o">=</span> <span class="n">tar_process</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gzip</span><span class="p">:</span>
+            <span class="n">gzip_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;gzip&quot;</span><span class="p">,</span> <span class="s2">&quot;--to-stdout&quot;</span><span class="p">,</span> <span class="s2">&quot;-6&quot;</span><span class="p">],</span>
+                                 <span class="n">stdin</span><span class="o">=</span><span class="n">tar_process</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+            <span class="n">read_process</span> <span class="o">=</span> <span class="n">gzip_process</span>
+        <span class="n">upload_partid</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">parts_info</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Uploading </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="si">}</span><span class="s2"> bucket&quot;</span><span class="p">)</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">tar_read_bytes</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_size</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__complete_upload</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">uploadid</span><span class="p">,</span> <span class="n">parts_info</span><span class="p">)</span>
+                <span class="n">partno</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">parts_info</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+                <span class="n">upload_partid</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">tar_read_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">read_process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">peek</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">uploadid</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_key_uploadid</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span>
+                                                              <span class="n">partno</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="n">tar_read_bytes</span> <span class="o">+</span> <span class="n">max_chunk</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_size</span><span class="p">:</span>
+                <span class="n">read_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_size</span> <span class="o">-</span> <span class="n">tar_read_bytes</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">read_chunk</span> <span class="o">=</span> <span class="n">max_chunk</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">inline</span> <span class="o">=</span> <span class="n">read_process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">read_chunk</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">inline</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__complete_upload</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">uploadid</span><span class="p">,</span> <span class="n">parts_info</span><span class="p">)</span>
+                    <span class="k">break</span>
+                <span class="n">tar_read_bytes</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inline</span><span class="p">)</span>
+                <span class="n">uploaded_bytes</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inline</span><span class="p">)</span>
+                <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">upload_part</span><span class="p">(</span>
+                    <span class="n">Body</span><span class="o">=</span><span class="n">inline</span><span class="p">,</span>
+                    <span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+                    <span class="n">ContentLength</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">inline</span><span class="p">),</span>
+                    <span class="n">ContentMD5</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__byte_checksum</span><span class="p">(</span><span class="n">inline</span><span class="p">),</span>
+                    <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+                    <span class="n">PartNumber</span><span class="o">=</span><span class="n">upload_partid</span><span class="p">,</span>
+                    <span class="n">UploadId</span><span class="o">=</span><span class="n">uploadid</span>
+                <span class="p">)</span>
+                <span class="n">inline</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">parts_info</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;ETag&#39;</span><span class="p">:</span> <span class="n">resp</span><span class="p">[</span><span class="s1">&#39;ETag&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;PartNumber&#39;</span><span class="p">:</span> <span class="n">upload_partid</span>
+                <span class="p">})</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Part # </span><span class="si">{</span><span class="n">upload_partid</span><span class="si">}</span><span class="s2">, &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Uploaded &quot;</span> <span class="o">+</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">uploaded_bytes</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">**</span> <span class="mi">2</span><span class="p">),</span> <span class="mi">2</span><span class="p">))</span> <span class="o">+</span>
+                      <span class="s2">&quot; Mb (total) &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">upload_partid</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Multipart upload failed. Trying to abort&quot;</span><span class="p">,</span>
+                      <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">abort_multipart_upload</span><span class="p">(</span>
+                    <span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+                    <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+                    <span class="n">UploadId</span><span class="o">=</span><span class="n">uploadid</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="n">e</span>
+        <span class="n">read_process</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gzip</span><span class="p">:</span>
+            <span class="n">gzip_process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+        <span class="n">tar_process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Multipart upload finished. Sending complete&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__complete_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">uploadid</span><span class="p">,</span> <span class="n">partlist</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Complete a multipart upload</span>
+
+<span class="sd">        :param key: Key of the upload</span>
+<span class="sd">        :type key: string</span>
+<span class="sd">        :param uploadid: Upload id of the multipart upload</span>
+<span class="sd">        :type uploadid: string</span>
+<span class="sd">        :param partlist: List of uploaded parts</span>
+<span class="sd">        :type partlist: list(dict())</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">complete_multipart_upload</span><span class="p">(</span>
+            <span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+            <span class="n">Key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+            <span class="n">MultipartUpload</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;Parts&#39;</span><span class="p">:</span> <span class="n">partlist</span>
+            <span class="p">},</span>
+            <span class="n">UploadId</span><span class="o">=</span><span class="n">uploadid</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Completed multipart upload, key: </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="S3Handler.get_object_count_and_size"><a class="viewcode-back" href="../../snap_to_bucket.s3_handler.html#snap_to_bucket.s3_handler.S3Handler.get_object_count_and_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_object_count_and_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if the given key is available and return number of objects under</span>
+<span class="sd">        it.</span>
+
+<span class="sd">        :param key: Key to check</span>
+<span class="sd">        :type key: string</span>
+
+<span class="sd">        :return: Number of objects under provided key prefix, size of unpacked</span>
+<span class="sd">            tar</span>
+<span class="sd">        :rtype: tuple(integer, integer)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__get_object_count</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">restore_partition_size</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="S3Handler.download_key"><a class="viewcode-back" href="../../snap_to_bucket.s3_handler.html#snap_to_bucket.s3_handler.S3Handler.download_key">[docs]</a>    <span class="k">def</span> <span class="nf">download_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">partno</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Download the key from S3</span>
+
+<span class="sd">        Create a temporary path to download the key and start download.</span>
+
+<span class="sd">        :param key: Key to be downloaded</span>
+<span class="sd">        :type key: string</span>
+<span class="sd">        :param partno: Part number of the key to be downloaded (-1 if there is</span>
+<span class="sd">            only one part)</span>
+<span class="sd">        :type partno: integer</span>
+
+<span class="sd">        :return: Location of downloaded file and size of restored partition (in</span>
+<span class="sd">            bytes)</span>
+<span class="sd">        :rtype: dict(string, integer)</span>
+
+<span class="sd">        :raises Exception: If download fails, delete the temp location</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">list_objects_v2</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+                                                 <span class="n">Prefix</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;Key&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Contents&#39;</span><span class="p">]]</span>
+        <span class="n">download_key</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">partno</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">download_key</span> <span class="o">=</span> <span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+                <span class="k">if</span> <span class="sa">f</span><span class="s2">&quot;-part</span><span class="si">{</span><span class="n">partno</span><span class="si">}</span><span class="s2">.tar&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+                    <span class="n">download_key</span> <span class="o">=</span> <span class="n">key</span>
+                    <span class="k">break</span>
+        <span class="k">if</span> <span class="n">download_key</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to part &#39;</span><span class="si">{</span><span class="n">partno</span><span class="si">}</span><span class="s2">&#39; under key </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temp_download</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;/tmp/snap-to-bucket/</span><span class="si">{</span><span class="n">download_key</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">head_object</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+                                         <span class="n">Key</span><span class="o">=</span><span class="n">download_key</span><span class="p">)[</span><span class="s1">&#39;ContentLength&#39;</span><span class="p">]</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temp_download</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">progress</span> <span class="o">=</span> <span class="n">ProgressPercentage</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">s3client</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">download_key</span><span class="p">,</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">temp_download</span><span class="p">,</span> <span class="n">Callback</span><span class="o">=</span><span class="n">progress</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed while downloading s3://</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">download_key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                  <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s2">&quot;/tmp/snap-to-bucket&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">temp_download</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">snap_to_bucket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../snap_to_bucket.html">snap_to_bucket package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../setupmigrate.html">Migrate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../recovery.html">Recovery</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Siemens AG.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

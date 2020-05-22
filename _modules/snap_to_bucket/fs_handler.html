@@ -1,0 +1,412 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>snap_to_bucket.fs_handler &#8212; snap_to_bucket 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for snap_to_bucket.fs_handler</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra &lt;mishra.gaurav@siemens.com&gt;</span>
+
+<span class="sd">SPDX-License-Identifier: MIT</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Siemens AG&#39;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="n">PIPE</span><span class="p">,</span> <span class="n">Popen</span>
+
+<span class="kn">import</span> <span class="nn">psutil</span>
+
+
+<div class="viewcode-block" id="FsHandler"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler">[docs]</a><span class="k">class</span> <span class="nc">FsHandler</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class to handle communications with local file system</span>
+
+<span class="sd">    :ivar mount_point: Mount point to be used for devices</span>
+<span class="sd">    :ivar verbose: Verbosity level (0-3)</span>
+<span class="sd">    :ivar device: The device to be mounted</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">TEN_MB</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mount_point</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializer for the class attributes.</span>
+
+<span class="sd">        :param mount_point: Mount point to use</span>
+<span class="sd">        :type mount_point: string</span>
+<span class="sd">        :param verbose: Verbosity level (0-3)</span>
+<span class="sd">        :type verbose: integer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span> <span class="o">=</span> <span class="n">mount_point</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">untar_process</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__wait_for_device_settle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wait for device to settle</span>
+
+<span class="sd">        Calls ``partprobe`` and ``udevadm settle``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;partprobe&quot;</span><span class="p">])</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;udevadm&quot;</span><span class="p">,</span> <span class="s2">&quot;settle&quot;</span><span class="p">])</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__get_mbr_device_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the name of mounted device containing MBR record to be updated</span>
+
+<span class="sd">        Lists all the devises by lsblk and check the device with label=volumeid.</span>
+<span class="sd">        If the device has an child mounted to mount_point, select the parent</span>
+<span class="sd">        device as MBR device otherwise select current device.</span>
+
+<span class="sd">        :param volumeid: The volume to search</span>
+<span class="sd">        :type volumeid: string</span>
+
+<span class="sd">        :return: Device with MBR to be updated</span>
+<span class="sd">        :rtype: string</span>
+
+<span class="sd">        :raises Exception: If none devices can be found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">lsblk_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;lsblk&quot;</span><span class="p">,</span> <span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;NAME,SERIAL,MOUNTPOINT&quot;</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">lsblk_process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">devices</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="n">blk_device</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">volume_serial</span> <span class="o">=</span> <span class="n">volumeid</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">devices</span><span class="p">[</span><span class="s1">&#39;blockdevices&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">device</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">volume_serial</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s1">&#39;children&#39;</span> <span class="ow">in</span> <span class="n">device</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">device</span><span class="p">[</span><span class="s1">&#39;children&#39;</span><span class="p">]:</span>
+                        <span class="k">if</span> <span class="n">child</span><span class="p">[</span><span class="s1">&#39;mountpoint&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="p">:</span>
+                            <span class="n">blk_device</span> <span class="o">=</span> <span class="s2">&quot;/dev/&quot;</span> <span class="o">+</span> <span class="n">device</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+                            <span class="k">break</span>
+                <span class="k">if</span> <span class="n">blk_device</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">blk_device</span> <span class="o">=</span> <span class="s2">&quot;/dev/&quot;</span> <span class="o">+</span> <span class="n">device</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="n">blk_device</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span>
+        <span class="k">return</span> <span class="n">blk_device</span>
+
+    <span class="k">def</span> <span class="nf">__update_device_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the name of device which can be mounted</span>
+
+<span class="sd">        Lists all the devises by lsblk and check the device with label=volumeid.</span>
+<span class="sd">        If the device has an unmounted child, select the child as mountable</span>
+<span class="sd">        device otherwise select current device.</span>
+
+<span class="sd">        :param volumeid: The volume to search</span>
+<span class="sd">        :type volumeid: string</span>
+
+<span class="sd">        :raises Exception: If none mountable devices can be found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">lsblk_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;lsblk&quot;</span><span class="p">,</span> <span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;NAME,SERIAL,MOUNTPOINT&quot;</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">lsblk_process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">devices</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="n">blk_device</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">volume_serial</span> <span class="o">=</span> <span class="n">volumeid</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">devices</span><span class="p">[</span><span class="s1">&#39;blockdevices&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">device</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">volume_serial</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s1">&#39;children&#39;</span> <span class="ow">in</span> <span class="n">device</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">device</span><span class="p">[</span><span class="s1">&#39;children&#39;</span><span class="p">]:</span>
+                        <span class="k">if</span> <span class="n">child</span><span class="p">[</span><span class="s1">&#39;mountpoint&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">blk_device</span> <span class="o">=</span> <span class="s2">&quot;/dev/&quot;</span> <span class="o">+</span> <span class="n">child</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+                            <span class="k">break</span>
+                <span class="k">if</span> <span class="n">blk_device</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">blk_device</span> <span class="o">=</span> <span class="s2">&quot;/dev/&quot;</span> <span class="o">+</span> <span class="n">device</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="n">blk_device</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">blk_device</span>
+
+<div class="viewcode-block" id="FsHandler.mount_volume"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.mount_volume">[docs]</a>    <span class="k">def</span> <span class="nf">mount_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mount given volume to FS</span>
+
+<span class="sd">        :param volumeid: Volume to be mounted</span>
+<span class="sd">        :type volumeid: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__wait_for_device_settle</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__update_device_name</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find device to mount.&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mounting &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="s2">&#39; at &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;mount&quot;</span><span class="p">,</span> <span class="s2">&quot;--source&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="s2">&quot;--target&quot;</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="FsHandler.unmount_volume"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.unmount_volume">[docs]</a>    <span class="k">def</span> <span class="nf">unmount_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Umount devices from mount_point</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unmounting device at &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;umount&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="FsHandler.prepare_volume"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.prepare_volume">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volume_id</span><span class="p">,</span> <span class="n">boot</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Partition fresh device</span>
+
+<span class="sd">        1. Create a DOS partition table</span>
+<span class="sd">        2. Create a primary partition and mark it as bootable (if selected)</span>
+
+<span class="sd">        **NOTE:** Call this function before mounting a blank disk</span>
+
+<span class="sd">        :param volume_id: Volume to be prepared</span>
+<span class="sd">        :type volume_id: string</span>
+<span class="sd">        :param boot: Make the primary partition bootable</span>
+<span class="sd">        :type boot: boolean</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__wait_for_device_settle</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">boot</span><span class="p">:</span>
+            <span class="n">bootable</span> <span class="o">=</span> <span class="s2">&quot;, bootable&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bootable</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__update_device_name</span><span class="p">(</span><span class="n">volume_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Partitioning device </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">disk_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;sfdisk&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">],</span> <span class="n">stdin</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">disk_process</span><span class="o">.</span><span class="n">communicate</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="nb">str</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;label: dos</span><span class="se">\n</span><span class="s2">type=83&quot;</span> <span class="o">+</span> <span class="n">bootable</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__wait_for_device_settle</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__update_device_name</span><span class="p">(</span><span class="n">volume_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Formating device </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="s2"> with ext4&quot;</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;mke2fs&quot;</span><span class="p">,</span> <span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="s2">&quot;ext4&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="FsHandler.untar"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.untar">[docs]</a>    <span class="k">def</span> <span class="nf">untar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tar_location</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start untar process</span>
+
+<span class="sd">        1. Create untar process if it does not exists.</span>
+<span class="sd">        2. Pipe the tar file to stdin of untar process</span>
+<span class="sd">        3. Remove the tar file</span>
+
+<span class="sd">        :param tar_location: Location of the tar file</span>
+<span class="sd">        :type tar_location: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Untaring file &#39;</span><span class="si">{</span><span class="n">tar_location</span><span class="si">}</span><span class="s2">&#39; to &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">untar_process</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">tar_options</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;tar&quot;</span><span class="p">,</span> <span class="s2">&quot;--extract&quot;</span><span class="p">,</span> <span class="s2">&quot;--directory&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="p">,</span>
+                           <span class="s2">&quot;--preserve-permissions&quot;</span><span class="p">,</span> <span class="s2">&quot;--preserve-order&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s2">&quot;.tar.gz&quot;</span> <span class="ow">in</span> <span class="n">tar_location</span><span class="p">:</span>
+                <span class="n">tar_options</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;--gzip&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">untar_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">(</span><span class="n">tar_options</span><span class="p">,</span> <span class="n">stdin</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">temp_file_obj</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">tar_location</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span>
+        <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_END</span><span class="p">)</span>
+        <span class="n">file_length</span> <span class="o">=</span> <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span>
+        <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_SET</span><span class="p">)</span>
+        <span class="n">free_mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">available</span>
+        <span class="n">max_chunk</span> <span class="o">=</span> <span class="n">free_mem</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">TEN_MB</span>
+        <span class="k">while</span> <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">file_length</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">untar_process</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">temp_file_obj</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">max_chunk</span><span class="p">))</span>
+        <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">tar_location</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FsHandler.terminate_tar"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.terminate_tar">[docs]</a>    <span class="k">def</span> <span class="nf">terminate_tar</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close the untar process</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">untar_process</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">untar_process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="FsHandler.mount_required_folders"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.mount_required_folders">[docs]</a>    <span class="k">def</span> <span class="nf">mount_required_folders</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mount the required folders for chroot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;/sys&quot;</span><span class="p">,</span> <span class="s2">&quot;/proc&quot;</span><span class="p">,</span> <span class="s2">&quot;/run&quot;</span><span class="p">,</span> <span class="s2">&quot;/dev&quot;</span><span class="p">]:</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;mount&quot;</span><span class="p">,</span> <span class="s2">&quot;--bind&quot;</span><span class="p">,</span> <span class="n">loc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span> <span class="o">+</span> <span class="n">loc</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="FsHandler.unmount_required_folders"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.unmount_required_folders">[docs]</a>    <span class="k">def</span> <span class="nf">unmount_required_folders</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Unmount the required folders for chroot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;/sys&quot;</span><span class="p">,</span> <span class="s2">&quot;/proc&quot;</span><span class="p">,</span> <span class="s2">&quot;/run&quot;</span><span class="p">,</span> <span class="s2">&quot;/dev&quot;</span><span class="p">]:</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;umount&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span> <span class="o">+</span> <span class="n">loc</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="FsHandler.update_grub"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.update_grub">[docs]</a>    <span class="k">def</span> <span class="nf">update_grub</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the grub settings for the disk</span>
+
+<span class="sd">        Chroot to the freshly tared location and update the grub.</span>
+
+<span class="sd">        :param volumeid: The volume to search</span>
+<span class="sd">        :type volumeid: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ChRooting to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="si">}</span><span class="s2"> to fix grub&quot;</span><span class="p">)</span>
+        <span class="n">mbr_device</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_mbr_device_name</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
+        <span class="n">real_root</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">O_RDONLY</span><span class="p">)</span>
+        <span class="n">current_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chroot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="p">)</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;grub-install&quot;</span><span class="p">,</span> <span class="n">mbr_device</span><span class="p">])</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;update-grub&quot;</span><span class="p">])</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">fchdir</span><span class="p">(</span><span class="n">real_root</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chroot</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">current_dir</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">real_root</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FsHandler.update_fstab"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.update_fstab">[docs]</a>    <span class="k">def</span> <span class="nf">update_fstab</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the fstab/disk</span>
+
+<span class="sd">        Update the LABEL of volume or UUID in fstab</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="si">}</span><span class="s2">/etc/fstab&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fstab_file</span><span class="p">:</span>
+            <span class="n">fstab</span> <span class="o">=</span> <span class="n">fstab_file</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+        <span class="n">fstab_pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;((?:UUID)|(?:LABEL))=([0-9a-z\-]+)\s+((?:\/boot)|(?:\/))\s+(ext(?:[2-4]))&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">fstab_pattern</span><span class="p">,</span> <span class="n">fstab</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">RegexFlag</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to understand fstab&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;uuid&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The old snapshot was mounted using UUID=&quot;</span> <span class="o">+</span>
+                      <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">blkid_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;blkid&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="s2">&quot;export&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">],</span>
+                                  <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+            <span class="n">blkid_response</span> <span class="o">=</span> <span class="n">blkid_process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">blkid_pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;^UUID=([0-9a-z\-]+)$&quot;</span>
+            <span class="n">blkid_uuid</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">blkid_pattern</span><span class="p">,</span> <span class="n">blkid_response</span><span class="p">,</span>
+                                    <span class="n">re</span><span class="o">.</span><span class="n">RegexFlag</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">RegexFlag</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;New UUID of volume=&quot;</span> <span class="o">+</span> <span class="n">blkid_uuid</span><span class="p">)</span>
+            <span class="n">new_fstab</span> <span class="o">=</span> <span class="n">fstab</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">blkid_uuid</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="si">}</span><span class="s2">/etc/fstab&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fstab_file</span><span class="p">:</span>
+                <span class="n">fstab_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">new_fstab</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The old snapshot was mounted using LABEL=</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;e2label&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">label</span><span class="p">])</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">e2label_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;e2label&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">e2label_process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">response</span> <span class="o">!=</span> <span class="n">label</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to change the volume label to &quot;</span> <span class="o">+</span>
+                                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Updated new volume with LABEL=</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to understand fstab&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FsHandler.get_mounted_disc_size"><a class="viewcode-back" href="../../snap_to_bucket.fs_handler.html#snap_to_bucket.fs_handler.FsHandler.get_mounted_disc_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_mounted_disc_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the size of mounted partition</span>
+
+<span class="sd">        Uses ``df`` to get the size of partition. This makes it less accurate</span>
+<span class="sd">        but faster than using ``du``.</span>
+
+<span class="sd">        :return: Size of the mounted partition in bytes</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">df_process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;/bin/df&quot;</span><span class="p">,</span> <span class="s2">&quot;--sync&quot;</span><span class="p">,</span> <span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--local&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;--output=used&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_point</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">df_process</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mi">1024</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">snap_to_bucket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../snap_to_bucket.html">snap_to_bucket package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../setupmigrate.html">Migrate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../recovery.html">Recovery</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Siemens AG.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

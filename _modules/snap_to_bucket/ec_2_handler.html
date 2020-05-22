@@ -1,0 +1,469 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>snap_to_bucket.ec_2_handler &#8212; snap_to_bucket 1.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for snap_to_bucket.ec_2_handler</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra &lt;mishra.gaurav@siemens.com&gt;</span>
+
+<span class="sd">SPDX-License-Identifier: MIT</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Siemens AG&#39;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+
+<span class="kn">import</span> <span class="nn">boto3</span>
+<span class="kn">import</span> <span class="nn">urllib.request</span>
+
+
+<div class="viewcode-block" id="Ec2Handler"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler">[docs]</a><span class="k">class</span> <span class="nc">Ec2Handler</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class to handle communications with EC2 services</span>
+
+<span class="sd">    :ivar tag: Name of the tag to search in snapshots</span>
+<span class="sd">    :ivar volume_type: The volume type to create from snapshot</span>
+<span class="sd">    :ivar verbose: Verbosity level (0-3)</span>
+<span class="sd">    :ivar instance_info: Current instance info by 169.254.169.254</span>
+<span class="sd">    :ivar ec2client: EC2 client from boto3</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s2">&quot;snap-to-bucket&quot;</span><span class="p">,</span> <span class="n">volume_type</span><span class="o">=</span><span class="s2">&quot;gp2&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializer for the class attributes.</span>
+
+<span class="sd">        Additionally, fetches the current instance information from</span>
+<span class="sd">        169.254.169.254 and set the default region as per current instance</span>
+<span class="sd">        region.</span>
+
+<span class="sd">        :param tag: Tag for snapshots</span>
+<span class="sd">        :type tag: string</span>
+<span class="sd">        :param volume_type: Volume type on EC2</span>
+<span class="sd">        :type volume_type: string</span>
+<span class="sd">        :param verbose: Verbosity level (0-3)</span>
+<span class="sd">        :type verbose: integer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">tag</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">volume_type</span> <span class="o">=</span> <span class="n">volume_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="s1">&#39;http://169.254.169.254/latest/dynamic/instance-identity/document/&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">urllib</span><span class="o">.</span><span class="n">error</span><span class="o">.</span><span class="n">URLError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Script needs to run on an EC2 instance&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Current instance is &#39;&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;instanceId&#39;</span><span class="p">]</span> <span class="o">+</span>
+                  <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;AWS_DEFAULT_REGION&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s1">&#39;ec2&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Ec2Handler.get_snapshots"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler.get_snapshots">[docs]</a>    <span class="k">def</span> <span class="nf">get_snapshots</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the list of snapshots which are to be migrated.</span>
+
+<span class="sd">        The function checks all snapshots with tag stored holding value migrate.</span>
+
+<span class="sd">        :return: List of snapshots dictionaries with id and name</span>
+<span class="sd">        :rtype: list()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">responses</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">describe_snapshots</span><span class="p">(</span>
+            <span class="n">Filters</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s1">&#39;Name&#39;</span><span class="p">:</span> <span class="s1">&#39;tag:&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span>
+                    <span class="s1">&#39;Values&#39;</span><span class="p">:</span> <span class="p">[</span>
+                        <span class="s1">&#39;migrate&#39;</span>
+                    <span class="p">]</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">))</span>
+        <span class="k">while</span><span class="p">(</span><span class="n">responses</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;NextToken&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">responses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">describe_snapshots</span><span class="p">(</span>
+                <span class="n">Filters</span><span class="o">=</span><span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;Name&#39;</span><span class="p">:</span> <span class="s1">&#39;tag:&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span>
+                        <span class="s1">&#39;Values&#39;</span><span class="p">:</span> <span class="p">[</span>
+                            <span class="s1">&#39;migrate&#39;</span>
+                        <span class="p">]</span>
+                    <span class="p">}</span>
+                <span class="p">],</span>
+                <span class="n">NextToken</span><span class="o">=</span><span class="n">responses</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;NextToken&#39;</span><span class="p">]</span>
+            <span class="p">))</span>
+        <span class="n">snapshots</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">response</span> <span class="ow">in</span> <span class="n">responses</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">snap</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Snapshots&#39;</span><span class="p">]:</span>
+                <span class="n">snapshot</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+                <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;SnapshotId&#39;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;Tags&#39;</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">tag</span><span class="p">[</span><span class="s1">&#39;Key&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span>
+                        <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tag</span><span class="p">[</span><span class="s1">&#39;Value&#39;</span><span class="p">]</span>
+                        <span class="k">break</span>
+                <span class="n">snapshots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Found &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">snapshots</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot; snapshots&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">snapshots</span></div>
+
+<div class="viewcode-block" id="Ec2Handler.create_volume"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler.create_volume">[docs]</a>    <span class="k">def</span> <span class="nf">create_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new volume based on snapshot</span>
+
+<span class="sd">        Creates a new volume from the given snapshot and wait till the volume</span>
+<span class="sd">        get ready.</span>
+<span class="sd">        Also set the tag of volume to created and add name as</span>
+<span class="sd">        &#39;snap-to-bucket-&#39; + id</span>
+
+<span class="sd">        :param snapshot: Snapshot info holding id and name keys</span>
+<span class="sd">        :type snapshot: dict()</span>
+
+<span class="sd">        :return: ID of newly created volume</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        :raises botocore.exceptions.WaiterError: If the volume creation failed,</span>
+<span class="sd">            try to delete it and raise exception</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">volumeid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">create_volume</span><span class="p">(</span>
+            <span class="n">AvailabilityZone</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;availabilityZone&#39;</span><span class="p">],</span>
+            <span class="n">Encrypted</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">SnapshotId</span><span class="o">=</span><span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
+            <span class="n">VolumeType</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">volume_type</span><span class="p">,</span>
+            <span class="n">TagSpecifications</span><span class="o">=</span><span class="p">[{</span>
+                <span class="s1">&#39;ResourceType&#39;</span><span class="p">:</span> <span class="s1">&#39;volume&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Tags&#39;</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;Key&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span>
+                        <span class="s1">&#39;Value&#39;</span><span class="p">:</span> <span class="s1">&#39;created&#39;</span>
+                    <span class="p">},</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;Key&#39;</span><span class="p">:</span> <span class="s1">&#39;Name&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;Value&#39;</span><span class="p">:</span> <span class="s1">&#39;snap-to-bucket-&#39;</span> <span class="o">+</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+                    <span class="p">}</span>
+                <span class="p">]</span>
+            <span class="p">}]</span>
+        <span class="p">)[</span><span class="s1">&#39;VolumeId&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; volume&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__volume_is_ready</span><span class="p">(</span><span class="n">volumeid</span><span class="p">):</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; is ready&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">volumeid</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Timed out while waiting for &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; to get ready&quot;</span><span class="p">,</span>
+                  <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Attempting to delete the volume&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">delete_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span></div>
+
+<div class="viewcode-block" id="Ec2Handler.create_empty_volume"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler.create_empty_volume">[docs]</a>    <span class="k">def</span> <span class="nf">create_empty_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new empty volume without snapshot</span>
+
+<span class="sd">        Creates a new volume and wait till the volume get ready.</span>
+<span class="sd">        The volume size if increased by 25% before creating it.</span>
+<span class="sd">        Also set the tag of volume to created and add name as</span>
+<span class="sd">        ``snap-to-bucket-%Y-%m-%d_%H-%M-%S-%f``</span>
+
+<span class="sd">        :param size: Size of the volume in bytes</span>
+<span class="sd">        :type size: integer</span>
+
+<span class="sd">        :return: ID of newly created volume</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        :raises botocore.exceptions.WaiterError: If the volume creation failed,</span>
+<span class="sd">            try to delete it and raise exception</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">vol_size</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">**</span> <span class="mi">3</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.25</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">vol_size</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">vol_size</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">timestr</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">_%H-%M-%S-</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">volumeid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">create_volume</span><span class="p">(</span>
+            <span class="n">AvailabilityZone</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;availabilityZone&#39;</span><span class="p">],</span>
+            <span class="n">Encrypted</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">Size</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">vol_size</span><span class="p">),</span>
+            <span class="n">VolumeType</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">volume_type</span><span class="p">,</span>
+            <span class="n">TagSpecifications</span><span class="o">=</span><span class="p">[{</span>
+                <span class="s1">&#39;ResourceType&#39;</span><span class="p">:</span> <span class="s1">&#39;volume&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Tags&#39;</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;Key&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span>
+                        <span class="s1">&#39;Value&#39;</span><span class="p">:</span> <span class="s1">&#39;restore-volume&#39;</span>
+                    <span class="p">},</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;Key&#39;</span><span class="p">:</span> <span class="s1">&#39;Name&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;Value&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;snap-to-bucket-</span><span class="si">{</span><span class="n">timestr</span><span class="si">}</span><span class="s1">&#39;</span>
+                    <span class="p">}</span>
+                <span class="p">]</span>
+            <span class="p">}]</span>
+        <span class="p">)[</span><span class="s1">&#39;VolumeId&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; volume&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__volume_is_ready</span><span class="p">(</span><span class="n">volumeid</span><span class="p">):</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; is ready&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">volumeid</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Timed out while waiting for &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; to get ready&quot;</span><span class="p">,</span>
+                  <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Attempting to delete the volume&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">delete_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span></div>
+
+    <span class="k">def</span> <span class="nf">__volume_is_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wait till volume is ready</span>
+
+<span class="sd">        :param volumeid: Volume id to wait for</span>
+<span class="sd">        :type volumeid: string</span>
+
+<span class="sd">        :raises botocore.exceptions.WaiterError: If the volume creation failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">get_waiter</span><span class="p">(</span><span class="s1">&#39;volume_available&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">VolumeIds</span><span class="o">=</span><span class="p">[</span><span class="n">volumeid</span><span class="p">],</span>
+            <span class="n">WaiterConfig</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;Delay&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+                <span class="s1">&#39;MaxAttempts&#39;</span><span class="p">:</span> <span class="mi">50</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__volume_is_attached</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wait till volume is attached to instance</span>
+
+<span class="sd">        :param volumeid: Volume id to wait for</span>
+<span class="sd">        :type volumeid: string</span>
+
+<span class="sd">        :raises botocore.exceptions.WaiterError: If the volume attachment failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">get_waiter</span><span class="p">(</span><span class="s1">&#39;volume_in_use&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">VolumeIds</span><span class="o">=</span><span class="p">[</span><span class="n">volumeid</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__volume_is_deleted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wait till volume is deleted</span>
+
+<span class="sd">        :param volumeid: Volume id to wait for</span>
+<span class="sd">        :type volumeid: string</span>
+
+<span class="sd">        :raises botocore.exceptions.WaiterError: If the volume deletion failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">get_waiter</span><span class="p">(</span><span class="s1">&#39;volume_deleted&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">VolumeIds</span><span class="o">=</span><span class="p">[</span><span class="n">volumeid</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="Ec2Handler.attach_volume"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler.attach_volume">[docs]</a>    <span class="k">def</span> <span class="nf">attach_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attach given volume to current instance</span>
+
+<span class="sd">        :param volumeid: Volume id to attach</span>
+<span class="sd">        :type volumeid: string</span>
+
+<span class="sd">        :raises botocore.exceptions.WaiterError: If the volume attachment failed,</span>
+<span class="sd">            try to delete it and raise exception</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">attach_volume</span><span class="p">(</span>
+                <span class="n">Device</span><span class="o">=</span><span class="s1">&#39;/dev/sdk&#39;</span><span class="p">,</span>
+                <span class="n">InstanceId</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;instanceId&#39;</span><span class="p">],</span>
+                <span class="n">VolumeId</span><span class="o">=</span><span class="n">volumeid</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to attach volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; to instance &#39;&quot;</span> <span class="o">+</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;instanceId&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Deleting volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">delete_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attaching volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; to instance &#39;&quot;</span> <span class="o">+</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;instanceId&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__volume_is_attached</span><span class="p">(</span><span class="n">volumeid</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; attached to &#39;&quot;</span> <span class="o">+</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;instanceId&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Ec2Handler.detach_volume"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler.detach_volume">[docs]</a>    <span class="k">def</span> <span class="nf">detach_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Detach given volume from current instance</span>
+
+<span class="sd">        :param volumeid: Volume id to detach</span>
+<span class="sd">        :type volumeid: string</span>
+
+<span class="sd">        :raises botocore.exceptions.WaiterError: If the volume detachment failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">detach_volume</span><span class="p">(</span>
+                <span class="n">Force</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">VolumeId</span><span class="o">=</span><span class="n">volumeid</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to detach volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; from instance &#39;&quot;</span> <span class="o">+</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;instanceId&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Detaching volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; from instance &#39;&quot;</span> <span class="o">+</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;instanceId&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__volume_is_ready</span><span class="p">(</span><span class="n">volumeid</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; detached from &#39;&quot;</span> <span class="o">+</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">instance_info</span><span class="p">[</span><span class="s1">&#39;instanceId&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Ec2Handler.delete_volume"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler.delete_volume">[docs]</a>    <span class="k">def</span> <span class="nf">delete_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volumeid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deletes a volume</span>
+
+<span class="sd">        :param volumeid: Volume id to be deleted</span>
+<span class="sd">        :type volumeid: string</span>
+
+<span class="sd">        :raises botocore.exceptions.WaiterError: If the volume deletion failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">delete_volume</span><span class="p">(</span>
+            <span class="n">VolumeId</span><span class="o">=</span><span class="n">volumeid</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Deleting volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__volume_is_deleted</span><span class="p">(</span><span class="n">volumeid</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39; deleted&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Ec2Handler.delete_snapshot"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler.delete_snapshot">[docs]</a>    <span class="k">def</span> <span class="nf">delete_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deletes a snapshot</span>
+
+<span class="sd">        :param snapshot: Snapshot to be deleted</span>
+<span class="sd">        :type snapshot: dict()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">delete_snapshot</span><span class="p">(</span>
+            <span class="n">SnapshotId</span><span class="o">=</span><span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Deleting snapshot &#39;</span><span class="si">{</span><span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;&#39;&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Ec2Handler.update_snapshot_tag"><a class="viewcode-back" href="../../snap_to_bucket.ec_2_handler.html#snap_to_bucket.ec_2_handler.Ec2Handler.update_snapshot_tag">[docs]</a>    <span class="k">def</span> <span class="nf">update_snapshot_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update snapshot tag to transferred</span>
+
+<span class="sd">        :param snapshot: Snapshot to be updated</span>
+<span class="sd">        :type snapshot: dict()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ec2client</span><span class="o">.</span><span class="n">create_tags</span><span class="p">(</span>
+            <span class="n">Resources</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="n">Tags</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s1">&#39;Key&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span>
+                    <span class="s1">&#39;Value&#39;</span><span class="p">:</span> <span class="s1">&#39;transferred&#39;</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Updated tag for snapshot &#39;</span><span class="si">{</span><span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">snap_to_bucket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../snap_to_bucket.html">snap_to_bucket package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../setupmigrate.html">Migrate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../recovery.html">Recovery</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Siemens AG.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

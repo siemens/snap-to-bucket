@@ -1,0 +1,291 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>snap_to_bucket.fs_handler module &#8212; snap_to_bucket 1.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="snap_to_bucket.run module" href="snap_to_bucket.run.html" />
+    <link rel="prev" title="snap_to_bucket.ec_2_handler module" href="snap_to_bucket.ec_2_handler.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-snap_to_bucket.fs_handler">
+<span id="snap-to-bucket-fs-handler-module"></span><h1>snap_to_bucket.fs_handler module<a class="headerlink" href="#module-snap_to_bucket.fs_handler" title="Permalink to this headline">¶</a></h1>
+<p>SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra &lt;<a class="reference external" href="mailto:mishra&#46;gaurav&#37;&#52;&#48;siemens&#46;com">mishra<span>&#46;</span>gaurav<span>&#64;</span>siemens<span>&#46;</span>com</a>&gt;</p>
+<p>SPDX-License-Identifier: MIT</p>
+<dl class="py class">
+<dt id="snap_to_bucket.fs_handler.FsHandler">
+<em class="property">class </em><code class="sig-prename descclassname">snap_to_bucket.fs_handler.</code><code class="sig-name descname">FsHandler</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mount_point</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class to handle communications with local file system</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mount_point</strong> – Mount point to be used for devices</p></li>
+<li><p><strong>verbose</strong> – Verbosity level (0-3)</p></li>
+<li><p><strong>device</strong> – The device to be mounted</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="snap_to_bucket.fs_handler.FsHandler.TEN_MB">
+<code class="sig-name descname">TEN_MB</code><em class="property"> = 10485760</em><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.TEN_MB" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler._FsHandler__get_mbr_device_name">
+<code class="sig-name descname">_FsHandler__get_mbr_device_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler._FsHandler__get_mbr_device_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the name of mounted device containing MBR record to be updated</p>
+<p>Lists all the devises by lsblk and check the device with label=volumeid.
+If the device has an child mounted to mount_point, select the parent
+device as MBR device otherwise select current device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – The volume to search</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Device with MBR to be updated</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>Exception</strong> – If none devices can be found</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler._FsHandler__update_device_name">
+<code class="sig-name descname">_FsHandler__update_device_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler._FsHandler__update_device_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the name of device which can be mounted</p>
+<p>Lists all the devises by lsblk and check the device with label=volumeid.
+If the device has an unmounted child, select the child as mountable
+device otherwise select current device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – The volume to search</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>Exception</strong> – If none mountable devices can be found</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler._FsHandler__wait_for_device_settle">
+<code class="sig-name descname">_FsHandler__wait_for_device_settle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler._FsHandler__wait_for_device_settle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait for device to settle</p>
+<p>Calls <code class="docutils literal notranslate"><span class="pre">partprobe</span></code> and <code class="docutils literal notranslate"><span class="pre">udevadm</span> <span class="pre">settle</span></code></p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.get_mounted_disc_size">
+<code class="sig-name descname">get_mounted_disc_size</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.get_mounted_disc_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.get_mounted_disc_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the size of mounted partition</p>
+<p>Uses <code class="docutils literal notranslate"><span class="pre">df</span></code> to get the size of partition. This makes it less accurate
+but faster than using <code class="docutils literal notranslate"><span class="pre">du</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Size of the mounted partition in bytes</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.mount_required_folders">
+<code class="sig-name descname">mount_required_folders</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.mount_required_folders"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.mount_required_folders" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mount the required folders for chroot</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.mount_volume">
+<code class="sig-name descname">mount_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.mount_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.mount_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mount given volume to FS</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – Volume to be mounted</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.prepare_volume">
+<code class="sig-name descname">prepare_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volume_id</span></em>, <em class="sig-param"><span class="n">boot</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.prepare_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.prepare_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Partition fresh device</p>
+<ol class="arabic simple">
+<li><p>Create a DOS partition table</p></li>
+<li><p>Create a primary partition and mark it as bootable (if selected)</p></li>
+</ol>
+<p><strong>NOTE:</strong> Call this function before mounting a blank disk</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume_id</strong> (<em>string</em>) – Volume to be prepared</p></li>
+<li><p><strong>boot</strong> (<em>boolean</em>) – Make the primary partition bootable</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.terminate_tar">
+<code class="sig-name descname">terminate_tar</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.terminate_tar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.terminate_tar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the untar process</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.unmount_required_folders">
+<code class="sig-name descname">unmount_required_folders</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.unmount_required_folders"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.unmount_required_folders" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unmount the required folders for chroot</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.unmount_volume">
+<code class="sig-name descname">unmount_volume</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.unmount_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.unmount_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Umount devices from mount_point</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.untar">
+<code class="sig-name descname">untar</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">tar_location</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.untar"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.untar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start untar process</p>
+<ol class="arabic simple">
+<li><p>Create untar process if it does not exists.</p></li>
+<li><p>Pipe the tar file to stdin of untar process</p></li>
+<li><p>Remove the tar file</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>tar_location</strong> (<em>string</em>) – Location of the tar file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.update_fstab">
+<code class="sig-name descname">update_fstab</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.update_fstab"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.update_fstab" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the fstab/disk</p>
+<p>Update the LABEL of volume or UUID in fstab</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.fs_handler.FsHandler.update_grub">
+<code class="sig-name descname">update_grub</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/fs_handler.html#FsHandler.update_grub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.update_grub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the grub settings for the disk</p>
+<p>Chroot to the freshly tared location and update the grub.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – The volume to search</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">snap_to_bucket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="snap_to_bucket.html">snap_to_bucket package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="snap_to_bucket.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="snap_to_bucket.html#module-snap_to_bucket">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="setupmigrate.html">Migrate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="recovery.html">Recovery</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="snap_to_bucket.html">snap_to_bucket package</a><ul>
+      <li>Previous: <a href="snap_to_bucket.ec_2_handler.html" title="previous chapter">snap_to_bucket.ec_2_handler module</a></li>
+      <li>Next: <a href="snap_to_bucket.run.html" title="next chapter">snap_to_bucket.run module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Siemens AG.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/snap_to_bucket.fs_handler.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,308 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>snap_to_bucket.ec_2_handler module &#8212; snap_to_bucket 1.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="snap_to_bucket.fs_handler module" href="snap_to_bucket.fs_handler.html" />
+    <link rel="prev" title="snap_to_bucket package" href="snap_to_bucket.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-snap_to_bucket.ec_2_handler">
+<span id="snap-to-bucket-ec-2-handler-module"></span><h1>snap_to_bucket.ec_2_handler module<a class="headerlink" href="#module-snap_to_bucket.ec_2_handler" title="Permalink to this headline">¶</a></h1>
+<p>SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra &lt;<a class="reference external" href="mailto:mishra&#46;gaurav&#37;&#52;&#48;siemens&#46;com">mishra<span>&#46;</span>gaurav<span>&#64;</span>siemens<span>&#46;</span>com</a>&gt;</p>
+<p>SPDX-License-Identifier: MIT</p>
+<dl class="py class">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler">
+<em class="property">class </em><code class="sig-prename descclassname">snap_to_bucket.ec_2_handler.</code><code class="sig-name descname">Ec2Handler</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">tag</span><span class="o">=</span><span class="default_value">'snap-to-bucket'</span></em>, <em class="sig-param"><span class="n">volume_type</span><span class="o">=</span><span class="default_value">'gp2'</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class to handle communications with EC2 services</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tag</strong> – Name of the tag to search in snapshots</p></li>
+<li><p><strong>volume_type</strong> – The volume type to create from snapshot</p></li>
+<li><p><strong>verbose</strong> – Verbosity level (0-3)</p></li>
+<li><p><strong>instance_info</strong> – Current instance info by 169.254.169.254</p></li>
+<li><p><strong>ec2client</strong> – EC2 client from boto3</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler._Ec2Handler__volume_is_attached">
+<code class="sig-name descname">_Ec2Handler__volume_is_attached</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler._Ec2Handler__volume_is_attached" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait till volume is attached to instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – Volume id to wait for</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.WaiterError</strong> – If the volume attachment failed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler._Ec2Handler__volume_is_deleted">
+<code class="sig-name descname">_Ec2Handler__volume_is_deleted</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler._Ec2Handler__volume_is_deleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait till volume is deleted</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – Volume id to wait for</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.WaiterError</strong> – If the volume deletion failed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler._Ec2Handler__volume_is_ready">
+<code class="sig-name descname">_Ec2Handler__volume_is_ready</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler._Ec2Handler__volume_is_ready" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait till volume is ready</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – Volume id to wait for</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.WaiterError</strong> – If the volume creation failed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler.attach_volume">
+<code class="sig-name descname">attach_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler.attach_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler.attach_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Attach given volume to current instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – Volume id to attach</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.WaiterError</strong> – If the volume attachment failed,
+try to delete it and raise exception</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler.create_empty_volume">
+<code class="sig-name descname">create_empty_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">size</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler.create_empty_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler.create_empty_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new empty volume without snapshot</p>
+<p>Creates a new volume and wait till the volume get ready.
+The volume size if increased by 25% before creating it.
+Also set the tag of volume to created and add name as
+<code class="docutils literal notranslate"><span class="pre">snap-to-bucket-%Y-%m-%d_%H-%M-%S-%f</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>size</strong> (<em>integer</em>) – Size of the volume in bytes</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ID of newly created volume</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.WaiterError</strong> – If the volume creation failed,
+try to delete it and raise exception</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler.create_volume">
+<code class="sig-name descname">create_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snapshot</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler.create_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler.create_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new volume based on snapshot</p>
+<p>Creates a new volume from the given snapshot and wait till the volume
+get ready.
+Also set the tag of volume to created and add name as
+‘snap-to-bucket-‘ + id</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>snapshot</strong> (<em>dict</em><em>(</em><em>)</em>) – Snapshot info holding id and name keys</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ID of newly created volume</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>string</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.WaiterError</strong> – If the volume creation failed,
+try to delete it and raise exception</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler.delete_snapshot">
+<code class="sig-name descname">delete_snapshot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snapshot</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler.delete_snapshot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler.delete_snapshot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes a snapshot</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>snapshot</strong> (<em>dict</em><em>(</em><em>)</em>) – Snapshot to be deleted</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler.delete_volume">
+<code class="sig-name descname">delete_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler.delete_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler.delete_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes a volume</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – Volume id to be deleted</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.WaiterError</strong> – If the volume deletion failed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler.detach_volume">
+<code class="sig-name descname">detach_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler.detach_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler.detach_volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Detach given volume from current instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>volumeid</strong> (<em>string</em>) – Volume id to detach</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>botocore.exceptions.WaiterError</strong> – If the volume detachment failed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler.get_snapshots">
+<code class="sig-name descname">get_snapshots</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler.get_snapshots"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler.get_snapshots" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the list of snapshots which are to be migrated.</p>
+<p>The function checks all snapshots with tag stored holding value migrate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>List of snapshots dictionaries with id and name</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>list()</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="snap_to_bucket.ec_2_handler.Ec2Handler.update_snapshot_tag">
+<code class="sig-name descname">update_snapshot_tag</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snapshot</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/snap_to_bucket/ec_2_handler.html#Ec2Handler.update_snapshot_tag"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#snap_to_bucket.ec_2_handler.Ec2Handler.update_snapshot_tag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update snapshot tag to transferred</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>snapshot</strong> (<em>dict</em><em>(</em><em>)</em>) – Snapshot to be updated</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">snap_to_bucket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="snap_to_bucket.html">snap_to_bucket package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="snap_to_bucket.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="snap_to_bucket.html#module-snap_to_bucket">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="setupmigrate.html">Migrate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="recovery.html">Recovery</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="snap_to_bucket.html">snap_to_bucket package</a><ul>
+      <li>Previous: <a href="snap_to_bucket.html" title="previous chapter">snap_to_bucket package</a></li>
+      <li>Next: <a href="snap_to_bucket.fs_handler.html" title="next chapter">snap_to_bucket.fs_handler module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Siemens AG.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/snap_to_bucket.ec_2_handler.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

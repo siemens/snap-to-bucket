@@ -1,0 +1,48 @@
+.. _migrate:
+
+Migrate
+********
+
+Tag the snapshots to migrate
+===============================
+
+The script fetches the snapshots which requires to be migrated using the tags.
+
+The default tag used is ``snap-to-bucket`` but can be overridden using the
+``-t/--tag`` from the input flags.
+
+The tags should hold the value ``migrate`` to be picked by the script.
+
+Once the snapshot is moved, the tag's value will be replaced with
+``transferred``.
+
+Backup
+=========
+
+Make sure to tag the snapshots and run the script with root privileges as the
+script needs to mount/unmount volumes.
+
+* Runing from source
+
+.. code-block:: bash
+
+    pipenv run snap_to_bucket --bucket <bucket>
+
+* Runing from install
+
+.. code-block:: bash
+
+    snap_to_bucket --bucket <bucket>
+
+If you have used different tags on snapshots, use ``-t/--tag`` option.
+
+If you want to mount the devices on different location, use ``-m/--mount`` option.
+
+To change the type of volume, use ``--type`` option (like ``io1`` for higher
+throughput).
+
+If you want to delete the snapshot once they are transferred, use ``-d/--delete``
+option. Use this option with caution as this step cannot be undone.
+
+Make sure to run as root user as several permissions are required to mount a
+device.
