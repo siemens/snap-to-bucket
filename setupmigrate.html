@@ -1,17 +1,16 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Migrate &#8212; snap_to_bucket 1.0.0 documentation</title>
-    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Migrate &#8212; snap_to_bucket 1.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=6625fa76" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=039e1c02" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=535dfbd7"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Recovery" href="recovery.html" />
@@ -32,43 +31,57 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="migrate">
-<span id="id1"></span><h1>Migrate<a class="headerlink" href="#migrate" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="tag-the-snapshots-to-migrate">
-<h2>Tag the snapshots to migrate<a class="headerlink" href="#tag-the-snapshots-to-migrate" title="Permalink to this headline">¶</a></h2>
+  <section id="migrate">
+<span id="id1"></span><h1>Migrate<a class="headerlink" href="#migrate" title="Permalink to this heading">¶</a></h1>
+<section id="tag-the-snapshots-to-migrate">
+<h2>Tag the snapshots to migrate<a class="headerlink" href="#tag-the-snapshots-to-migrate" title="Permalink to this heading">¶</a></h2>
 <p>The script fetches the snapshots which requires to be migrated using the tags.</p>
 <p>The default tag used is <code class="docutils literal notranslate"><span class="pre">snap-to-bucket</span></code> but can be overridden using the
 <code class="docutils literal notranslate"><span class="pre">-t/--tag</span></code> from the input flags.</p>
 <p>The tags should hold the value <code class="docutils literal notranslate"><span class="pre">migrate</span></code> to be picked by the script.</p>
 <p>Once the snapshot is moved, the tag’s value will be replaced with
 <code class="docutils literal notranslate"><span class="pre">transferred</span></code>.</p>
-</div>
-<div class="section" id="backup">
-<h2>Backup<a class="headerlink" href="#backup" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="backup">
+<h2>Backup<a class="headerlink" href="#backup" title="Permalink to this heading">¶</a></h2>
 <p>Make sure to tag the snapshots and run the script with root privileges as the
 script needs to mount/unmount volumes.</p>
 <ul class="simple">
 <li><p>Runing from source</p></li>
 </ul>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pipenv run snap_to_bucket --bucket &lt;bucket&gt;
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pipenv<span class="w"> </span>run<span class="w"> </span>snap2bucket<span class="w"> </span>--bucket<span class="w"> </span>&lt;bucket&gt;
 </pre></div>
 </div>
 <ul class="simple">
 <li><p>Runing from install</p></li>
 </ul>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>snap_to_bucket --bucket &lt;bucket&gt;
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>snap2bucket<span class="w"> </span>--bucket<span class="w"> </span>&lt;bucket&gt;
 </pre></div>
 </div>
 <p>If you have used different tags on snapshots, use <code class="docutils literal notranslate"><span class="pre">-t/--tag</span></code> option.</p>
 <p>If you want to mount the devices on different location, use <code class="docutils literal notranslate"><span class="pre">-m/--mount</span></code> option.</p>
 <p>To change the type of volume, use <code class="docutils literal notranslate"><span class="pre">--type</span></code> option (like <code class="docutils literal notranslate"><span class="pre">io1</span></code> for higher
 throughput).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">io1</span></code>, <code class="docutils literal notranslate"><span class="pre">io2</span></code> and <code class="docutils literal notranslate"><span class="pre">gp3</span></code> allow to provide additional IOPS, which can be
+provided with <code class="docutils literal notranslate"><span class="pre">--iops</span></code> flag. <code class="docutils literal notranslate"><span class="pre">gp3</span></code> also allows setting the throughput of
+the volume and can be set with <code class="docutils literal notranslate"><span class="pre">--throughput</span></code> flag.</p>
+<p>The default storage class used for S3 objects will be STANDARD. To use other
+classes like STANDARD_IA or even GLACIER, use <code class="docutils literal notranslate"><span class="pre">--storage-class</span></code> option.</p>
 <p>If you want to delete the snapshot once they are transferred, use <code class="docutils literal notranslate"><span class="pre">-d/--delete</span></code>
 option. Use this option with caution as this step cannot be undone.</p>
 <p>Make sure to run as root user as several permissions are required to mount a
 device.</p>
-</div>
-</div>
+</section>
+<section id="backup-huge-data">
+<h2>Backup huge data<a class="headerlink" href="#backup-huge-data" title="Permalink to this heading">¶</a></h2>
+<p>The tool allows you to split the resultant tar into smaller tars. To do so, use
+the <code class="docutils literal notranslate"><span class="pre">-s/--split</span></code> flag and define the size of each part. While restoring, the
+script can list all of the tars in the given folder and reassemble based on
+part number.</p>
+<p>Since the S3 has a limit on object size, a single split can not be larger than
+5TB (the default value).</p>
+</section>
+</section>
 
 
           </div>
@@ -87,12 +100,13 @@ device.</p>
 
 
 <h3>Navigation</h3>
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="snap_to_bucket.html">snap_to_bucket package</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Migrate</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#tag-the-snapshots-to-migrate">Tag the snapshots to migrate</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#backup">Backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#backup-huge-data">Backup huge data</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="recovery.html">Recovery</a></li>
@@ -111,12 +125,12 @@ device.</p>
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script>document.getElementById('searchbox').style.display = "block"</script>
 
 
 
@@ -130,11 +144,11 @@ device.</p>
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &copy;2020, Siemens AG.
+      &copy;2020-2022, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
       |
       <a href="_sources/setupmigrate.rst.txt"

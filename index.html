@@ -1,17 +1,16 @@
-
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>snap_to_bucket &#8212; snap_to_bucket 1.0.0 documentation</title>
-    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>snap_to_bucket &#8212; snap_to_bucket 1.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=6625fa76" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=039e1c02" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=535dfbd7"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="snap_to_bucket package" href="snap_to_bucket.html" />
@@ -31,19 +30,27 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="snap-to-bucket">
-<h1>snap_to_bucket<a class="headerlink" href="#snap-to-bucket" title="Permalink to this headline">¶</a></h1>
+  <section id="snap-to-bucket">
+<h1>snap_to_bucket<a class="headerlink" href="#snap-to-bucket" title="Permalink to this heading">¶</a></h1>
 <p>This tool allows to move data from AWS snapshots to S3 buckets.</p>
-</div>
-<div class="section" id="installation">
-<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 -m pip install -U pipenv
-$ pipenv install -e .
+</section>
+<section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">¶</a></h1>
+<ul class="simple">
+<li><p>From source code</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/siemens/snap-to-bucket.git
+$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>snap-to-bucket
+$<span class="w"> </span>python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-U<span class="w"> </span>pipenv
+$<span class="w"> </span>pipenv<span class="w"> </span>install<span class="w"> </span>--dev<span class="w"> </span>--editable<span class="w"> </span>.
 </pre></div>
 </div>
-</div>
-<div class="section" id="requirements">
-<h1>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p>From PyPi</p></li>
+</ul>
+</section>
+<section id="requirements">
+<h1>Requirements<a class="headerlink" href="#requirements" title="Permalink to this heading">¶</a></h1>
 <ol class="arabic">
 <li><p>The script needs to be running on an EC2 instance.</p></li>
 <li><p>Minimum RAM 2 GB, recommend RAM &gt; 6 GB.</p></li>
@@ -62,99 +69,109 @@ to perform following operations:</p>
 </div></blockquote>
 </li>
 </ol>
-</div>
-<div class="section" id="sample-iam-policy">
-<h1>Sample IAM policy<a class="headerlink" href="#sample-iam-policy" title="Permalink to this headline">¶</a></h1>
+</section>
+<section id="sample-iam-policy">
+<h1>Sample IAM policy<a class="headerlink" href="#sample-iam-policy" title="Permalink to this heading">¶</a></h1>
 <p>You can create an IAM role and attach following policy:</p>
 <div class="highlight-JSON notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-    <span class="nt">&quot;Version&quot;</span><span class="p">:</span> <span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
-    <span class="nt">&quot;Statement&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span>
-            <span class="nt">&quot;Sid&quot;</span><span class="p">:</span> <span class="s2">&quot;VisualEditor0&quot;</span><span class="p">,</span>
-            <span class="nt">&quot;Effect&quot;</span><span class="p">:</span> <span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
-            <span class="nt">&quot;Action&quot;</span><span class="p">:</span> <span class="p">[</span>
-                <span class="s2">&quot;ec2:DetachVolume&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:AttachVolume&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:ModifyVolume&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:DeleteSnapshot&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:ModifyVolumeAttribute&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:DescribeVolumesModifications&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:DescribeSnapshots&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:DescribeVolumeAttribute&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:CreateVolume&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:DeleteVolume&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:DescribeVolumeStatus&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:ModifySnapshotAttribute&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:DescribeVolumes&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;ec2:CreateTags&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:PutObject&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:GetObjectVersion&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:ListBucket&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:ListBucketMultipartUploads&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:AbortMultipartUpload&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:GetObjectTagging&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:PutObjectTagging&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:HeadBucket&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;s3:ListMultipartUploadParts&quot;</span>
-            <span class="p">],</span>
-            <span class="nt">&quot;Resource&quot;</span><span class="p">:</span> <span class="s2">&quot;*&quot;</span>
-        <span class="p">}</span>
-    <span class="p">]</span>
+<span class="w">    </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;VisualEditor0&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">                </span><span class="s2">&quot;ec2:DetachVolume&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:AttachVolume&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:ModifyVolume&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:DeleteSnapshot&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:ModifyVolumeAttribute&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:DescribeVolumesModifications&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:DescribeSnapshots&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:DescribeVolumeAttribute&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:CreateVolume&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:DeleteVolume&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:DescribeVolumeStatus&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:ModifySnapshotAttribute&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:DescribeVolumes&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;ec2:CreateTags&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:PutObject&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:GetObjectVersion&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:ListBucket&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:ListBucketMultipartUploads&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:AbortMultipartUpload&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:GetObjectTagging&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:PutObjectTagging&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:HeadBucket&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;s3:ListMultipartUploadParts&quot;</span>
+<span class="w">            </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;*&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">]</span>
 <span class="p">}</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="disclaimer">
-<h1>Disclaimer<a class="headerlink" href="#disclaimer" title="Permalink to this headline">¶</a></h1>
+</section>
+<section id="disclaimer">
+<h1>Disclaimer<a class="headerlink" href="#disclaimer" title="Permalink to this heading">¶</a></h1>
 <p>The tool works for snapshots with only one Linux partition. If there are more
 than partition, only the first partition will be picked.</p>
 <p>Similarly, only one partition will be created while restoring.</p>
 <p>The script also does not encrypt your data explicitly. So, make sure the S3
 bucket is secure enough and it is advisable to enable server-side encryption
 with AES-256.</p>
-</div>
-<div class="section" id="options">
-<h1>Options<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h1>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>usage: snap_to_bucket [-h] [-v] -b BUCKET [--proxy PROXY] [--noproxy NOPROXY]
-                      [-t TAG] [--type {standard,io1,gp2,sc1,st1}] [-m DIR]
-                      [-d] [-r] [-k KEY] [--boot]
+</section>
+<section id="options">
+<h1>Options<a class="headerlink" href="#options" title="Permalink to this heading">¶</a></h1>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Usage: snap2bucket [OPTIONS]
 
-snap_to_bucket is a simple tool based on boto3 to move snapshots to S3 buckets
+  snap2bucket is a simple tool based on boto3 to move snapshots to S3 buckets.
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --verbose         increase output verbosity (-vvv for more verbosity)
-  -b BUCKET, --bucket BUCKET
-                        S3 bucket to push snaps in
-  --proxy PROXY         proxy to be used
-  --noproxy NOPROXY     comma separated list of domains which do not require
-                        proxy
-  -t TAG, --tag TAG     tag on snapshots (defaults to snap-to-bucket)
-  --type {standard,io1,gp2,sc1,st1}
-                        volume type (defaults to gp2)
-  -m DIR, --mount DIR   mount point for disks (defaults to /mnt/snaps)
-  -d, --delete          delete snapshot after transfer (defaults to false)
-  -r, --restore         restore a snapshot
-  -k KEY, --key KEY     key of the snapshot to restore (required if restoring)
-  --boot                was the snapshot a bootable volume?
-
-use delete with caution
+Options:
+  --version                       Show the version and exit.
+  -v, --verbose                   increase output verbosity (-vvv for more
+                                  verbosity)  [x&gt;=0]
+  --proxy http_proxy              proxy to be used
+  --noproxy no_proxy              comma separated list of domains which do not
+                                  require proxy
+  -b, --bucket BUCKET             S3 bucket to push snaps in  [required]
+  -t, --tag TAG                   tag on snapshots  [default: snap-to-bucket]
+  --type [standard|io1|io2|gp2|gp3|sc1|st1]
+                                  volume type  [default: gp2]
+  --iops INTEGER                  volume IOPS, valid only for gp3, io1 and io2
+  --throughput THROUGHPUT         volume throughput in MiB/s. Valid only for
+                                  gp3 volumes  [125&lt;=x&lt;=1000]
+  --storage-class [STANDARD|REDUCED_REDUNDANCY|STANDARD_IA|ONEZONE_IA|GLACIER|INTELLIGENT_TIERING|DEEP_ARCHIVE]
+                                  storage class for S3 objects  [default:
+                                  STANDARD]
+  -m, --mount DIR                 mount point for disks  [default: /mnt/snaps]
+  -d, --delete                    delete snapshot after transfer. Use with
+                                  caution!  [default: False]
+  -s, --split SIZE                split tar in chunks no bigger than (allowed
+                                  suffix b,k,m,g,t)  [default: 5t]
+  -g, --gzip                      compress tar with gzip
+  -r, --restore                   restore a snapshot
+  -k, --key TEXT                  key of the snapshot folder to restore
+                                  (required if restoring)
+  --boot                          was the snapshot a bootable volume?
+  --restore-dir DIRECTORY         directory to store S3 objects for restoring
+                                  [default: /tmp/snap-to-bucket]
+  -h, --help                      Show this message and exit.
 </pre></div>
 </div>
 <p>See <a class="reference internal" href="setupmigrate.html#migrate"><span class="std std-ref">Migrate</span></a> for steps to migrate the EBS Snapshots to S3.</p>
 <p>See <a class="reference internal" href="recovery.html#recovery"><span class="std std-ref">Recovery</span></a> for steps to recover data from S3.</p>
-</div>
-<div class="section" id="files-on-s3">
-<h1>Files on S3<a class="headerlink" href="#files-on-s3" title="Permalink to this headline">¶</a></h1>
+</section>
+<section id="files-on-s3">
+<h1>Files on S3<a class="headerlink" href="#files-on-s3" title="Permalink to this heading">¶</a></h1>
 <dl class="simple">
-<dt>The script will store snapshots with following structure in S3:</dt><dd><p><code class="docutils literal notranslate"><span class="pre">snap/&lt;snapshot-name&gt;/&lt;snapshot-id&gt;-&lt;%Y-%m-%d_%H-%M-%S-%f&gt;.tar</span></code></p>
+<dt>The script will store snapshots with following structure in S3:</dt><dd><p><code class="docutils literal notranslate"><span class="pre">snap/&lt;snapshot-name&gt;/&lt;snapshot-id&gt;-&lt;creation-time&gt;-&lt;now-time&gt;.tar</span></code></p>
 </dd>
 </dl>
-<p>The snaphost name gets spaces and <code class="docutils literal notranslate"><span class="pre">/</span></code> replaces as <code class="docutils literal notranslate"><span class="pre">+</span></code> and <code class="docutils literal notranslate"><span class="pre">_</span></code> respectively.</p>
+<p>The snaphost name gets spaces and <code class="docutils literal notranslate"><span class="pre">/</span></code> replaces as <code class="docutils literal notranslate"><span class="pre">+</span></code> and <code class="docutils literal notranslate"><span class="pre">_</span></code> respectively. And the date/time is in ISO 8601 format.</p>
 <p>This section is controlled by <code class="docutils literal notranslate"><span class="pre">get_key_for_upload()</span></code> of <code class="docutils literal notranslate"><span class="pre">S3Handler</span></code> class.</p>
 <div class="toctree-wrapper compound">
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="snap_to_bucket.html">snap_to_bucket package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="snap_to_bucket.html#submodules">Submodules</a></li>
@@ -164,6 +181,7 @@ use delete with caution
 <li class="toctree-l1"><a class="reference internal" href="setupmigrate.html">Migrate</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="setupmigrate.html#tag-the-snapshots-to-migrate">Tag the snapshots to migrate</a></li>
 <li class="toctree-l2"><a class="reference internal" href="setupmigrate.html#backup">Backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setupmigrate.html#backup-huge-data">Backup huge data</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="recovery.html">Recovery</a><ul>
@@ -173,15 +191,15 @@ use delete with caution
 </li>
 </ul>
 </div>
-</div>
-<div class="section" id="indices-and-tables">
-<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this heading">¶</a></h1>
 <ul class="simple">
 <li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
 <li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
 <li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
 </ul>
-</div>
+</section>
 
 
           </div>
@@ -200,7 +218,7 @@ use delete with caution
 
 
 <h3>Navigation</h3>
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="snap_to_bucket.html">snap_to_bucket package</a></li>
 <li class="toctree-l1"><a class="reference internal" href="setupmigrate.html">Migrate</a></li>
@@ -219,12 +237,12 @@ use delete with caution
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script>document.getElementById('searchbox').style.display = "block"</script>
 
 
 
@@ -238,11 +256,11 @@ use delete with caution
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &copy;2020, Siemens AG.
+      &copy;2020-2022, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
       |
       <a href="_sources/index.rst.txt"
