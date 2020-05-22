@@ -4,14 +4,14 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>snap_to_bucket.snap_handler &#8212; snap_to_bucket 1.0.0 documentation</title>
-    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>snap_to_bucket.snap_handler &#8212; snap_to_bucket 1.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
     <script src="../../_static/jquery.js"></script>
     <script src="../../_static/underscore.js"></script>
     <script src="../../_static/doctools.js"></script>
-    <script src="../../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
    
@@ -39,7 +39,7 @@
 
 <span class="sd">SPDX-License-Identifier: MIT</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Siemens AG&#39;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Siemens AG&quot;</span>
 
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">sys</span>
@@ -65,46 +65,52 @@
 <span class="sd">    :ivar restore_boot: Was the snapshot, being restored, bootable?</span>
 <span class="sd">    :ivar split_size: Size in bytes to split tar at</span>
 <span class="sd">    :ivar gzip: True to compress tar with gzip</span>
+<span class="sd">    :ivar restore_dir: Location to store S3 object for restore</span>
+<span class="sd">    :ivar iops: IOPS for supported volumes</span>
+<span class="sd">    :ivar throughput: Throughput for supported volumes</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s2">&quot;snap-to-bucket&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                  <span class="n">volume_type</span><span class="o">=</span><span class="s2">&quot;gp2&quot;</span><span class="p">,</span> <span class="n">storage_class</span><span class="o">=</span><span class="s2">&quot;STANDARD&quot;</span><span class="p">,</span>
                  <span class="n">mount_point</span><span class="o">=</span><span class="s2">&quot;/mnt/snaps&quot;</span><span class="p">,</span> <span class="n">delete_snap</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">restore</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">restore_key</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">restore_boot</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+                 <span class="n">restore_key</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">restore_boot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">restore_dir</span><span class="o">=</span><span class="s2">&quot;/tmp/snap-to-bucket&quot;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializer for the class attributes.</span>
 
 <span class="sd">        :param bucket: Bucket to use</span>
-<span class="sd">        :type bucket: string</span>
+<span class="sd">        :type bucket: str</span>
 <span class="sd">        :param tag: Tag of snapshots for filtering</span>
-<span class="sd">        :type tag: string</span>
+<span class="sd">        :type tag: str</span>
 <span class="sd">        :param verbose: Verbosity level (0-3)</span>
-<span class="sd">        :type verbose: integer</span>
+<span class="sd">        :type verbose: int</span>
 <span class="sd">        :param volume_type: Type of new EBS volume to use</span>
-<span class="sd">        :type volume_type: string</span>
+<span class="sd">        :type volume_type: str</span>
 <span class="sd">        :param storage_class: Storage class of S3 object</span>
-<span class="sd">        :type storage_class: string</span>
+<span class="sd">        :type storage_class: str</span>
 <span class="sd">        :param mount_point: Mount point to mount new volumes to</span>
-<span class="sd">        :type mount_point: string</span>
+<span class="sd">        :type mount_point: str</span>
 <span class="sd">        :param delete_snap: True to delete snapshot after migration</span>
 <span class="sd">        :type delete_snap: boolean</span>
 <span class="sd">        :param restore: Is this a restore request?</span>
 <span class="sd">        :type restore: boolean</span>
 <span class="sd">        :param restore_key: Key of the tar to be restored</span>
-<span class="sd">        :type restore_key: string</span>
+<span class="sd">        :type restore_key: str</span>
 <span class="sd">        :param restore_boot: Was the snapshot, being restored, bootable?</span>
 <span class="sd">        :type restore_boot: boolean</span>
+<span class="sd">        :param restore_dir: Location to store S3 object for restore</span>
+<span class="sd">        :type restore_dir: str</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__bucket</span> <span class="o">=</span> <span class="n">bucket</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__tag</span> <span class="o">=</span> <span class="n">tag</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__verbose</span> <span class="o">=</span> <span class="n">verbose</span>
-        <span class="k">if</span> <span class="n">volume_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;standard&#39;</span><span class="p">,</span> <span class="s1">&#39;io1&#39;</span><span class="p">,</span> <span class="s1">&#39;gp2&#39;</span><span class="p">,</span> <span class="s1">&#39;sc1&#39;</span><span class="p">,</span> <span class="s1">&#39;st1&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">volume_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;standard&quot;</span><span class="p">,</span> <span class="s2">&quot;io1&quot;</span><span class="p">,</span> <span class="s2">&quot;gp2&quot;</span><span class="p">,</span> <span class="s2">&quot;gp3&quot;</span><span class="p">,</span> <span class="s2">&quot;sc1&quot;</span><span class="p">,</span> <span class="s2">&quot;st1&quot;</span><span class="p">]:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">__volume_type</span> <span class="o">=</span> <span class="n">volume_type</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized volume type </span><span class="si">{</span><span class="n">volume_type</span><span class="si">}</span><span class="s2"> passed&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">storage_class</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;STANDARD&#39;</span><span class="p">,</span> <span class="s1">&#39;REDUCED_REDUNDANCY&#39;</span><span class="p">,</span> <span class="s1">&#39;STANDARD_IA&#39;</span><span class="p">,</span>
-                             <span class="s1">&#39;ONEZONE_IA&#39;</span><span class="p">,</span> <span class="s1">&#39;GLACIER&#39;</span><span class="p">,</span> <span class="s1">&#39;INTELLIGENT_TIERING&#39;</span><span class="p">,</span>
-                             <span class="s1">&#39;DEEP_ARCHIVE&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">storage_class</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;STANDARD&quot;</span><span class="p">,</span> <span class="s2">&quot;REDUCED_REDUNDANCY&quot;</span><span class="p">,</span> <span class="s2">&quot;STANDARD_IA&quot;</span><span class="p">,</span>
+                             <span class="s2">&quot;ONEZONE_IA&quot;</span><span class="p">,</span> <span class="s2">&quot;GLACIER&quot;</span><span class="p">,</span> <span class="s2">&quot;INTELLIGENT_TIERING&quot;</span><span class="p">,</span>
+                             <span class="s2">&quot;DEEP_ARCHIVE&quot;</span><span class="p">]:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">__storage_class</span> <span class="o">=</span> <span class="n">storage_class</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized storage class </span><span class="si">{</span><span class="n">storage_class</span><span class="si">}</span><span class="s2"> passed&quot;</span><span class="p">)</span>
@@ -113,29 +119,36 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">__restore</span> <span class="o">=</span> <span class="n">restore</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__restore_key</span> <span class="o">=</span> <span class="n">restore_key</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__restore_boot</span> <span class="o">=</span> <span class="n">restore_boot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__restore_dir</span> <span class="o">=</span> <span class="n">restore_dir</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__split_size</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="mf">1024.0</span> <span class="o">*</span> <span class="mf">1024.0</span> <span class="o">*</span> <span class="mf">1024.0</span> <span class="o">*</span> <span class="mf">1024.0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__gzip</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__iops</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__throughput</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__s3handler</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span> <span class="o">=</span> <span class="kc">None</span>
 
-<div class="viewcode-block" id="SnapToBucket.update_proxy"><a class="viewcode-back" href="../../snap_to_bucket.snap_handler.html#snap_to_bucket.snap_handler.SnapToBucket.update_proxy">[docs]</a>    <span class="k">def</span> <span class="nf">update_proxy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noproxy</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="SnapToBucket.update_proxy"><a class="viewcode-back" href="../../snap_to_bucket.snap_handler.html#snap_to_bucket.snap_handler.SnapToBucket.update_proxy">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">update_proxy</span><span class="p">(</span><span class="n">proxy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">noproxy</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Update the http_proxy and no_proxy environment variables</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">proxy</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;http_proxy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">proxy</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;https_proxy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">proxy</span>
+        <span class="k">if</span> <span class="n">proxy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;http_proxy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">proxy</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;https_proxy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">proxy</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s1">&#39;http_proxy&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="s1">&#39;HTTP_PROXY&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
-                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;http_proxy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;HTTP_PROXY&#39;</span><span class="p">]</span>
-            <span class="k">if</span> <span class="s1">&#39;https_proxy&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="s1">&#39;HTTPS_PROXY&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
-                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;https_proxy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;HTTPS_PROXY&#39;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">noproxy</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;no_proxy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">noproxy</span>
+            <span class="k">if</span> <span class="s2">&quot;http_proxy&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="s2">&quot;HTTP_PROXY&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;http_proxy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;HTTP_PROXY&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s2">&quot;https_proxy&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="s2">&quot;HTTPS_PROXY&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;https_proxy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;HTTPS_PROXY&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">noproxy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;no_proxy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">noproxy</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s1">&#39;no_proxy&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="s1">&#39;NO_PROXY&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
-                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;no_proxy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;NO_PROXY&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s2">&quot;no_proxy&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="s2">&quot;NO_PROXY&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;no_proxy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;NO_PROXY&quot;</span><span class="p">]</span>
 
-        <span class="k">if</span> <span class="s1">&#39;no_proxy&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="s2">&quot;169.254.169.254&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;no_proxy&#39;</span><span class="p">]:</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;no_proxy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;no_proxy&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;,169.254.169.254&quot;</span></div>
+        <span class="k">if</span> <span class="s2">&quot;no_proxy&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span> <span class="ow">and</span> <span class="s2">&quot;169.254.169.254&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;no_proxy&quot;</span><span class="p">]:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;no_proxy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;no_proxy&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;,169.254.169.254&quot;</span></div>
 
 <div class="viewcode-block" id="SnapToBucket.update_split_size"><a class="viewcode-back" href="../../snap_to_bucket.snap_handler.html#snap_to_bucket.snap_handler.SnapToBucket.update_split_size">[docs]</a>    <span class="k">def</span> <span class="nf">update_split_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">split</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -152,20 +165,42 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__gzip</span> <span class="o">=</span> <span class="kc">True</span></div>
 
+<div class="viewcode-block" id="SnapToBucket.update_iops"><a class="viewcode-back" href="../../snap_to_bucket.snap_handler.html#snap_to_bucket.snap_handler.SnapToBucket.update_iops">[docs]</a>    <span class="k">def</span> <span class="nf">update_iops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iops</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the IOPS of the volume</span>
+
+<span class="sd">        :param iops: New IOPS value</span>
+<span class="sd">        :type iops: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__iops</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">iops</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnapToBucket.update_throughput"><a class="viewcode-back" href="../../snap_to_bucket.snap_handler.html#snap_to_bucket.snap_handler.SnapToBucket.update_throughput">[docs]</a>    <span class="k">def</span> <span class="nf">update_throughput</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">throughput</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the throughput of the volume</span>
+
+<span class="sd">        :param throughput: New throughput value</span>
+<span class="sd">        :type throughput: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__throughput</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">throughput</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="SnapToBucket.initiate_migration"><a class="viewcode-back" href="../../snap_to_bucket.snap_handler.html#snap_to_bucket.snap_handler.SnapToBucket.initiate_migration">[docs]</a>    <span class="k">def</span> <span class="nf">initiate_migration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        The brains of the process</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span> <span class="o">=</span> <span class="n">Ec2Handler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__tag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__volume_type</span><span class="p">,</span>
-                                       <span class="bp">self</span><span class="o">.</span><span class="n">__verbose</span><span class="p">)</span>
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">__verbose</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__iops</span><span class="p">,</span>
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">__throughput</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__s3handler</span> <span class="o">=</span> <span class="n">S3Handler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__bucket</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__split_size</span><span class="p">,</span>
                                      <span class="bp">self</span><span class="o">.</span><span class="n">__gzip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__storage_class</span><span class="p">,</span>
                                      <span class="bp">self</span><span class="o">.</span><span class="n">__verbose</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span> <span class="o">=</span> <span class="n">FsHandler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__mount_point</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__verbose</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__mount_point</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__restore</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__restore_key</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__restore</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__restore_key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;missing key argument for restore&quot;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__restore_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__restore_dir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">W_OK</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Directory </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">__restore_dir</span><span class="si">}</span><span class="s2"> is not writeable&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">__restore_snapshot</span><span class="p">()</span>
             <span class="k">return</span>
 
@@ -182,17 +217,15 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">mount_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
                 <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">get_mounted_disc_size</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">__move_data</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error occurred during S3 upload for snapshot &#39;&quot;</span> <span class="o">+</span>
-                      <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+                      <span class="n">snapshot</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Deleting volume &#39;</span><span class="si">{</span><span class="n">volumeid</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">ex</span>
+            <span class="k">finally</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">unmount_volume</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span><span class="o">.</span><span class="n">detach_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span><span class="o">.</span><span class="n">delete_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
-                <span class="k">raise</span> <span class="n">e</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">unmount_volume</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span><span class="o">.</span><span class="n">detach_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span><span class="o">.</span><span class="n">delete_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__delete_snap</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span><span class="o">.</span><span class="n">delete_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -209,7 +242,7 @@
 <span class="sd">        :type snap: dict()</span>
 
 <span class="sd">        :return: Newly created volume ID</span>
-<span class="sd">        :rtype: string</span>
+<span class="sd">        :rtype: str</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">volumeid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span><span class="o">.</span><span class="n">create_volume</span><span class="p">(</span><span class="n">snap</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__ec2handler</span><span class="o">.</span><span class="n">attach_volume</span><span class="p">(</span><span class="n">volumeid</span><span class="p">)</span>
@@ -222,7 +255,7 @@
 <span class="sd">        :param snapshot: Snapshot to be uploaded</span>
 <span class="sd">        :type snapshot: dict()</span>
 <span class="sd">        :param size: Size of the mounted partition</span>
-<span class="sd">        :type size: integer</span>
+<span class="sd">        :type size: int</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__s3handler</span><span class="o">.</span><span class="n">initiate_upload</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__mount_point</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
 
@@ -239,12 +272,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">mount_volume</span><span class="p">(</span><span class="n">volume_id</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">no_of_objects</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__s3handler</span><span class="o">.</span><span class="n">download_key</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__restore_key</span><span class="p">,</span>
-                                                          <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">untar</span><span class="p">(</span><span class="n">temp_path</span><span class="p">)</span>
+                                                        <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__restore_dir</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">untar_single_file</span><span class="p">(</span><span class="n">temp_path</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">no_of_objects</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
                     <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__s3handler</span><span class="o">.</span><span class="n">download_key</span><span class="p">(</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">__restore_key</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">__restore_key</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__restore_dir</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">untar</span><span class="p">(</span><span class="n">temp_path</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">__fshandler</span><span class="o">.</span><span class="n">terminate_tar</span><span class="p">()</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__restore_boot</span><span class="p">:</span>
@@ -274,7 +307,7 @@
 
 
 <h3>Navigation</h3>
-<p class="caption"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../snap_to_bucket.html">snap_to_bucket package</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../setupmigrate.html">Migrate</a></li>
@@ -294,7 +327,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -313,10 +346,10 @@
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &copy;2020, Siemens AG.
+      &copy;2020-2021, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.4.0</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>
