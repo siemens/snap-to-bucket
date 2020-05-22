@@ -4,6 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Recovery &#8212; snap_to_bucket 1.0.0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -145,6 +146,9 @@ snapshot was bootable.</p></li>
 </div>
 <p><strong>Note:</strong> The script will create new volume of size 25% more than the size of
 tar or <code class="docutils literal notranslate"><span class="pre">x-amz-meta-disc-size</span></code> metadata (if available).</p>
+<p>The value for <code class="docutils literal notranslate"><span class="pre">--key</span></code> should be the logical folder holding the tars. For
+example <code class="docutils literal notranslate"><span class="pre">snap/&lt;snapshot-name&gt;</span></code>. The scipt will handle single file upload and
+split uploads accordingly.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">--boot</span></code> flag if the snapshot to be restored was a bootable volume.</p>
 <p>Restore accepts other options <code class="docutils literal notranslate"><span class="pre">--type</span></code> and <code class="docutils literal notranslate"><span class="pre">-m/--mount</span></code>.</p>
 </div>
@@ -212,7 +216,7 @@ tar or <code class="docutils literal notranslate"><span class="pre">x-amz-meta-d
       &copy;2020, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

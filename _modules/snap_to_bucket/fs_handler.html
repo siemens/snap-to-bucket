@@ -4,6 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>snap_to_bucket.fs_handler &#8212; snap_to_bucket 1.0.0 documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
@@ -233,9 +234,9 @@
         <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_END</span><span class="p">)</span>
         <span class="n">file_length</span> <span class="o">=</span> <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span>
         <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_SET</span><span class="p">)</span>
-        <span class="n">free_mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">available</span>
-        <span class="n">max_chunk</span> <span class="o">=</span> <span class="n">free_mem</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">TEN_MB</span>
         <span class="k">while</span> <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">file_length</span><span class="p">:</span>
+            <span class="n">free_mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">available</span>
+            <span class="n">max_chunk</span> <span class="o">=</span> <span class="n">free_mem</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">TEN_MB</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">untar_process</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">temp_file_obj</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">max_chunk</span><span class="p">))</span>
         <span class="n">temp_file_obj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">tar_location</span><span class="p">)</span></div>
@@ -400,7 +401,7 @@
       &copy;2020, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

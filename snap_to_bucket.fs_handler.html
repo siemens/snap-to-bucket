@@ -4,6 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>snap_to_bucket.fs_handler module &#8212; snap_to_bucket 1.0.0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -56,8 +57,8 @@
 <dd></dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.fs_handler.FsHandler._FsHandler__get_mbr_device_name">
-<code class="sig-name descname">_FsHandler__get_mbr_device_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler._FsHandler__get_mbr_device_name" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.fs_handler.FsHandler.__get_mbr_device_name">
+<code class="sig-name descname">__get_mbr_device_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.__get_mbr_device_name" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the name of mounted device containing MBR record to be updated</p>
 <p>Lists all the devises by lsblk and check the device with label=volumeid.
 If the device has an child mounted to mount_point, select the parent
@@ -79,8 +80,8 @@ device as MBR device otherwise select current device.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.fs_handler.FsHandler._FsHandler__update_device_name">
-<code class="sig-name descname">_FsHandler__update_device_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler._FsHandler__update_device_name" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.fs_handler.FsHandler.__update_device_name">
+<code class="sig-name descname">__update_device_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volumeid</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.__update_device_name" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the name of device which can be mounted</p>
 <p>Lists all the devises by lsblk and check the device with label=volumeid.
 If the device has an unmounted child, select the child as mountable
@@ -96,8 +97,8 @@ device otherwise select current device.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.fs_handler.FsHandler._FsHandler__wait_for_device_settle">
-<code class="sig-name descname">_FsHandler__wait_for_device_settle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler._FsHandler__wait_for_device_settle" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.fs_handler.FsHandler.__wait_for_device_settle">
+<code class="sig-name descname">__wait_for_device_settle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.fs_handler.FsHandler.__wait_for_device_settle" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wait for device to settle</p>
 <p>Calls <code class="docutils literal notranslate"><span class="pre">partprobe</span></code> and <code class="docutils literal notranslate"><span class="pre">udevadm</span> <span class="pre">settle</span></code></p>
 </dd></dl>
@@ -276,7 +277,7 @@ but faster than using <code class="docutils literal notranslate"><span class="pr
       &copy;2020, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

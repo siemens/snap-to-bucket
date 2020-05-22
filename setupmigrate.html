@@ -4,6 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Migrate &#8212; snap_to_bucket 1.0.0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -63,10 +64,21 @@ script needs to mount/unmount volumes.</p>
 <p>If you want to mount the devices on different location, use <code class="docutils literal notranslate"><span class="pre">-m/--mount</span></code> option.</p>
 <p>To change the type of volume, use <code class="docutils literal notranslate"><span class="pre">--type</span></code> option (like <code class="docutils literal notranslate"><span class="pre">io1</span></code> for higher
 throughput).</p>
+<p>The default storage class used for S3 objects will be STANDARD. To use other
+classes like STANDARD_IA or even GLACIER, use <code class="docutils literal notranslate"><span class="pre">--storage-class</span></code> option.</p>
 <p>If you want to delete the snapshot once they are transferred, use <code class="docutils literal notranslate"><span class="pre">-d/--delete</span></code>
 option. Use this option with caution as this step cannot be undone.</p>
 <p>Make sure to run as root user as several permissions are required to mount a
 device.</p>
+</div>
+<div class="section" id="backup-huge-data">
+<h2>Backup huge data<a class="headerlink" href="#backup-huge-data" title="Permalink to this headline">¶</a></h2>
+<p>The tool allows you to split the resultant tar into smaller tars. To do so, use
+the <code class="docutils literal notranslate"><span class="pre">-s/--split</span></code> flag and define the size of each part. While restoring, the
+script can list all of the tars in the given folder and reassemble based on
+part number.</p>
+<p>Since the S3 has a limit on object size, a single split can not be larger than
+5TB (the default value).</p>
 </div>
 </div>
 
@@ -93,6 +105,7 @@ device.</p>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Migrate</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#tag-the-snapshots-to-migrate">Tag the snapshots to migrate</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#backup">Backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#backup-huge-data">Backup huge data</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="recovery.html">Recovery</a></li>
@@ -133,7 +146,7 @@ device.</p>
       &copy;2020, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

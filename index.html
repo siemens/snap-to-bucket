@@ -4,6 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>snap_to_bucket &#8212; snap_to_bucket 1.0.0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -38,7 +39,7 @@
 <div class="section" id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ python3 -m pip install -U pipenv
-$ pipenv install -e .
+$ pipenv install --dev --editable .
 </pre></div>
 </div>
 </div>
@@ -117,8 +118,9 @@ with AES-256.</p>
 <div class="section" id="options">
 <h1>Options<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h1>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>usage: snap_to_bucket [-h] [-v] -b BUCKET [--proxy PROXY] [--noproxy NOPROXY]
-                      [-t TAG] [--type {standard,io1,gp2,sc1,st1}] [-m DIR]
-                      [-d] [-r] [-k KEY] [--boot]
+                      [-t TAG] [--type {standard,io1,gp2,sc1,st1}]
+                      [--storage-class {STANDARD,REDUCED_REDUNDANCY,STANDARD_IA,ONEZONE_IA,GLACIER,INTELLIGENT_TIERING,DEEP_ARCHIVE}]
+                      [-m DIR] [-d] [-s SIZE] [-g] [-r] [-k KEY] [--boot]
 
 snap_to_bucket is a simple tool based on boto3 to move snapshots to S3 buckets
 
@@ -130,13 +132,20 @@ optional arguments:
   --proxy PROXY         proxy to be used
   --noproxy NOPROXY     comma separated list of domains which do not require
                         proxy
-  -t TAG, --tag TAG     tag on snapshots (defaults to snap-to-bucket)
+  -t TAG, --tag TAG     tag on snapshots (default: snap-to-bucket)
   --type {standard,io1,gp2,sc1,st1}
-                        volume type (defaults to gp2)
-  -m DIR, --mount DIR   mount point for disks (defaults to /mnt/snaps)
-  -d, --delete          delete snapshot after transfer (defaults to false)
+                        volume type (default: gp2)
+  --storage-class {STANDARD,REDUCED_REDUNDANCY,STANDARD_IA,ONEZONE_IA,GLACIER,INTELLIGENT_TIERING,DEEP_ARCHIVE}
+                        storage class for S3 objects (default: STANDARD)
+  -m DIR, --mount DIR   mount point for disks (default: /mnt/snaps)
+  -d, --delete          delete snapshot after transfer (default: False)
+  -s SIZE, --split SIZE
+                        split tar in chunks no bigger than (allowed suffix
+                        b,k,m,g,t) (default: 5t)
+  -g, --gzip            compress tar with gzip
   -r, --restore         restore a snapshot
-  -k KEY, --key KEY     key of the snapshot to restore (required if restoring)
+  -k KEY, --key KEY     key of the snapshot folder to restore (required if
+                        restoring)
   --boot                was the snapshot a bootable volume?
 
 use delete with caution
@@ -164,6 +173,7 @@ use delete with caution
 <li class="toctree-l1"><a class="reference internal" href="setupmigrate.html">Migrate</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="setupmigrate.html#tag-the-snapshots-to-migrate">Tag the snapshots to migrate</a></li>
 <li class="toctree-l2"><a class="reference internal" href="setupmigrate.html#backup">Backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setupmigrate.html#backup-huge-data">Backup huge data</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="recovery.html">Recovery</a><ul>
@@ -241,7 +251,7 @@ use delete with caution
       &copy;2020, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

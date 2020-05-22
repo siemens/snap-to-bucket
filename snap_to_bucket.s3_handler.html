@@ -4,6 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>snap_to_bucket.s3_handler module &#8212; snap_to_bucket 1.0.0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -63,8 +64,8 @@
 </dd>
 </dl>
 <dl class="py method">
-<dt id="snap_to_bucket.s3_handler.S3Handler._S3Handler__byte_checksum">
-<code class="sig-name descname">_S3Handler__byte_checksum</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler._S3Handler__byte_checksum" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.s3_handler.S3Handler.__byte_checksum">
+<code class="sig-name descname">__byte_checksum</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler.__byte_checksum" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the checksum for the given bytes</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -80,8 +81,8 @@
 </dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.s3_handler.S3Handler._S3Handler__check_bucket_accessiblity">
-<code class="sig-name descname">_S3Handler__check_bucket_accessiblity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bucket</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler._S3Handler__check_bucket_accessiblity" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.s3_handler.S3Handler.__check_bucket_accessiblity">
+<code class="sig-name descname">__check_bucket_accessiblity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bucket</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler.__check_bucket_accessiblity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check if the bucket can be accessed</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -94,8 +95,8 @@
 </dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.s3_handler.S3Handler._S3Handler__complete_upload">
-<code class="sig-name descname">_S3Handler__complete_upload</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key</span></em>, <em class="sig-param"><span class="n">uploadid</span></em>, <em class="sig-param"><span class="n">partlist</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler._S3Handler__complete_upload" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.s3_handler.S3Handler.__complete_upload">
+<code class="sig-name descname">__complete_upload</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key</span></em>, <em class="sig-param"><span class="n">uploadid</span></em>, <em class="sig-param"><span class="n">partlist</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler.__complete_upload" title="Permalink to this definition">¶</a></dt>
 <dd><p>Complete a multipart upload</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -109,8 +110,8 @@
 </dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.s3_handler.S3Handler._S3Handler__get_key_uploadid">
-<code class="sig-name descname">_S3Handler__get_key_uploadid</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snapshot</span></em>, <em class="sig-param"><span class="n">size</span></em>, <em class="sig-param"><span class="n">partno</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler._S3Handler__get_key_uploadid" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.s3_handler.S3Handler.__get_key_uploadid">
+<code class="sig-name descname">__get_key_uploadid</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snapshot</span></em>, <em class="sig-param"><span class="n">size</span></em>, <em class="sig-param"><span class="n">partno</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler.__get_key_uploadid" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generate the key and uploadid for a snapshot</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -130,8 +131,8 @@
 </dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.s3_handler.S3Handler._S3Handler__get_object_count">
-<code class="sig-name descname">_S3Handler__get_object_count</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler._S3Handler__get_object_count" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.s3_handler.S3Handler.__get_object_count">
+<code class="sig-name descname">__get_object_count</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.s3_handler.S3Handler.__get_object_count" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the count of objects under given key</p>
 <p>This function also assigns value to attribute <code class="docutils literal notranslate"><span class="pre">restore_partition_size</span></code>.
 If the object has meta data <code class="docutils literal notranslate"><span class="pre">x-amz-meta-disc-size</span></code> and value if
@@ -319,7 +320,7 @@ remaining size before split occurs)</p>
       &copy;2020, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

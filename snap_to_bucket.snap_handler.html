@@ -4,6 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>snap_to_bucket.snap_handler module &#8212; snap_to_bucket 1.0.0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -60,8 +61,8 @@
 </dd>
 </dl>
 <dl class="py method">
-<dt id="snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__create_attach_volume">
-<code class="sig-name descname">_SnapToBucket__create_attach_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snap</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__create_attach_volume" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.snap_handler.SnapToBucket.__create_attach_volume">
+<code class="sig-name descname">__create_attach_volume</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snap</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket.__create_attach_volume" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create and attach a new volume from given snapshot</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -77,8 +78,8 @@
 </dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__move_data">
-<code class="sig-name descname">_SnapToBucket__move_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snapshot</span></em>, <em class="sig-param"><span class="n">size</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__move_data" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.snap_handler.SnapToBucket.__move_data">
+<code class="sig-name descname">__move_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">snapshot</span></em>, <em class="sig-param"><span class="n">size</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket.__move_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Upload the data from snapshot to S3</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -91,8 +92,8 @@
 </dd></dl>
 
 <dl class="py method">
-<dt id="snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__restore_snapshot">
-<code class="sig-name descname">_SnapToBucket__restore_snapshot</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket._SnapToBucket__restore_snapshot" title="Permalink to this definition">¶</a></dt>
+<dt id="snap_to_bucket.snap_handler.SnapToBucket.__restore_snapshot">
+<code class="sig-name descname">__restore_snapshot</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#snap_to_bucket.snap_handler.SnapToBucket.__restore_snapshot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Restore the snapshot from S3</p>
 </dd></dl>
 
@@ -194,7 +195,7 @@
       &copy;2020, Siemens AG.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

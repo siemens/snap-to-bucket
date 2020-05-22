@@ -69,6 +69,10 @@ Run the script with ``-r\--restore`` flag and provide the bucket and the key.
 **Note:** The script will create new volume of size 25% more than the size of
 tar or ``x-amz-meta-disc-size`` metadata (if available).
 
+The value for ``--key`` should be the logical folder holding the tars. For
+example ``snap/<snapshot-name>``. The scipt will handle single file upload and
+split uploads accordingly.
+
 Use ``--boot`` flag if the snapshot to be restored was a bootable volume.
 
 Restore accepts other options ``--type`` and ``-m/--mount``.
