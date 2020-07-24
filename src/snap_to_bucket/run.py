@@ -23,7 +23,7 @@ def main(args):
     snap_to_bucket = SnapToBucket(args.bucket, args.tag, args.verbose,
                                   args.type, args.storage_class, args.mount,
                                   args.delete, args.restore, args.key,
-                                  args.boot)
+                                  args.boot, args.restore_dir)
     snap_to_bucket.update_proxy(args.proxy, args.noproxy)
     snap_to_bucket.update_split_size(args.split)
     if args.gzip:
@@ -74,7 +74,7 @@ def entrypoint():
     parser = argparse.ArgumentParser(description='''
     snap_to_bucket is a simple tool based on boto3 to move snapshots to S3
     buckets
-    ''', epilog='use delete with caution')
+    ''')
     parser.add_argument("-v", "--verbose", help="increase output verbosity " +
                         "(-vvv for more verbosity)", action="count", default=0)
     parser.add_argument("-b", "--bucket", help="S3 bucket to push snaps in",
@@ -100,8 +100,8 @@ def entrypoint():
                         "(default: %(default)s)", required=False,
                         metavar="DIR", default="/mnt/snaps")
     parser.add_argument("-d", "--delete", help="delete snapshot after " +
-                        "transfer (default: %(default)s)", required=False,
-                        action="store_true", default=False)
+                        "transfer. Use with caution! (default: %(default)s)",
+                        required=False, action="store_true", default=False)
     parser.add_argument("-s", "--split", help="split tar in chunks no bigger " +
                         "than (allowed suffix b,k,m,g,t) (default: %(default)s)",
                         metavar="SIZE", required=False, default="5t",
@@ -115,6 +115,9 @@ def entrypoint():
                         required=False)
     parser.add_argument("--boot", help="was the snapshot a bootable volume?",
                         action="store_true", default=False, required=False)
+    parser.add_argument("--restore-dir", help="directory to store S3 objects " +
+                        "for restoring (default: %(default)s)",
+                        default="/tmp/snap-to-bucket", required=False)
     args = parser.parse_args()
 
     if os.geteuid() != 0:

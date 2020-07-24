@@ -12,7 +12,6 @@ import gc
 import os
 import sys
 import base64
-import shutil
 import hashlib
 import threading
 from datetime import datetime
@@ -344,7 +343,7 @@ class S3Handler:
         return (self.__get_object_count(key),
                 self.restore_partition_size)
 
-    def download_key(self, key, partno):
+    def download_key(self, key, partno, restore_dir):
         """
         Download the key from S3
 
@@ -355,6 +354,8 @@ class S3Handler:
         :param partno: Part number of the key to be downloaded (-1 if there is
             only one part)
         :type partno: integer
+        :param restore_dir: Location to store S3 object for restore
+        :type restore_dir: string
 
         :return: Location of downloaded file and size of restored partition (in
             bytes)
@@ -365,28 +366,27 @@ class S3Handler:
         response = self.s3client.list_objects_v2(Bucket=self.bucket,
                                                  Prefix=key)
         keys = [o['Key'] for o in response['Contents']]
-        download_key = None
+        download_key_name = None
         if partno == -1:
-            download_key = keys[0]
+            download_key_name = keys[0]
         else:
             for key in keys:
                 if f"-part{partno}.tar" in key:
-                    download_key = key
+                    download_key_name = key
                     break
-        if download_key == None:
+        if download_key_name == None:
             raise Exception(f"Unable to part '{partno}' under key {key}")
-        self.temp_download = f"/tmp/snap-to-bucket/{download_key}"
+        self.temp_download = os.path.join(restore_dir, download_key_name)
         size = self.s3client.head_object(Bucket=self.bucket,
-                                         Key=download_key)['ContentLength']
-        os.makedirs(os.path.dirname(self.temp_download), exist_ok=True)
+                                         Key=download_key_name)['ContentLength']
         progress = ProgressPercentage(key, size)
         try:
-            self.s3client.download_file(self.bucket, download_key,
+            self.s3client.download_file(self.bucket, download_key_name,
                                         self.temp_download, Callback=progress)
             print()
         except Exception as e:
-            print(f"Failed while downloading s3://{self.bucket}/{download_key}",
+            print(f"Failed while downloading s3://{self.bucket}/{download_key_name}",
                   file=sys.stderr)
-            shutil.rmtree("/tmp/snap-to-bucket")
+            os.remove(self.temp_download)
             raise e
         return self.temp_download

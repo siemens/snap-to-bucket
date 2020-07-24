@@ -32,12 +32,14 @@ class SnapToBucket:
     :ivar restore_boot: Was the snapshot, being restored, bootable?
     :ivar split_size: Size in bytes to split tar at
     :ivar gzip: True to compress tar with gzip
+    :ivar restore_dir: Location to store S3 object for restore
     """
 
     def __init__(self, bucket, tag="snap-to-bucket", verbose=0,
                  volume_type="gp2", storage_class="STANDARD",
                  mount_point="/mnt/snaps", delete_snap=False, restore=False,
-                 restore_key="", restore_boot=False):
+                 restore_key="", restore_boot=False,
+                 restore_dir="/tmp/snap-to-bucket"):
         """
         Initializer for the class attributes.
 
@@ -61,6 +63,8 @@ class SnapToBucket:
         :type restore_key: string
         :param restore_boot: Was the snapshot, being restored, bootable?
         :type restore_boot: boolean
+        :param restore_dir: Location to store S3 object for restore
+        :type restore_dir: string
         """
         self.__bucket = bucket
         self.__tag = tag
@@ -80,6 +84,7 @@ class SnapToBucket:
         self.__restore = restore
         self.__restore_key = restore_key
         self.__restore_boot = restore_boot
+        self.__restore_dir = restore_dir
         self.__split_size = 5 * 1024.0 * 1024.0 * 1024.0 * 1024.0
         self.__gzip = False
 
@@ -133,6 +138,9 @@ class SnapToBucket:
         if self.__restore == True:
             if self.__restore_key == None:
                 raise Exception("missing key argument for restore")
+            os.makedirs(self.__restore_dir, exist_ok=True)
+            if not os.access(self.__restore_dir, os.W_OK):
+                raise Exception(f"Directory {self.__restore_dir} is not writeable")
             self.__restore_snapshot()
             return
 
@@ -206,12 +214,12 @@ class SnapToBucket:
             self.__fshandler.mount_volume(volume_id)
             if no_of_objects == 1:
                 temp_path = self.__s3handler.download_key(self.__restore_key,
-                                                          -1)
+                                                        -1, self.__restore_dir)
                 self.__fshandler.untar(temp_path)
             else:
                 for i in range(1, no_of_objects + 1):
                     temp_path = self.__s3handler.download_key(
-                        self.__restore_key, i)
+                        self.__restore_key, i, self.__restore_dir)
                     self.__fshandler.untar(temp_path)
             self.__fshandler.terminate_tar()
             if self.__restore_boot:
