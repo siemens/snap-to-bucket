@@ -224,10 +224,6 @@ class S3Handler:
         tar_read_bytes = 0
         fifty_mb = 50 * (1024 ** 2)
         five_gb = (5 * (1024 ** 3))
-        free_mem = psutil.virtual_memory().available
-        if free_mem > five_gb:
-            free_mem = five_gb
-        max_chunk = free_mem - fifty_mb
         if self.split_size >= size:
             if self.verbose > 1:
                 print("Uploading snapshot as a single file as " +
@@ -247,6 +243,10 @@ class S3Handler:
         parts_info = list()
         print(f"Uploading {key} to {self.bucket} bucket")
         while True:
+            free_mem = psutil.virtual_memory().available
+            if free_mem > five_gb:
+                free_mem = five_gb
+            max_chunk = free_mem - fifty_mb
             if (tar_read_bytes >= self.split_size):
                 self.__complete_upload(key, uploadid, parts_info)
                 partno += 1

@@ -200,9 +200,9 @@ class FsHandler:
         temp_file_obj.seek(0, os.SEEK_END)
         file_length = temp_file_obj.tell()
         temp_file_obj.seek(0, os.SEEK_SET)
-        free_mem = psutil.virtual_memory().available
-        max_chunk = free_mem - self.TEN_MB
         while temp_file_obj.tell() < file_length:
+            free_mem = psutil.virtual_memory().available
+            max_chunk = free_mem - self.TEN_MB
             self.untar_process.stdin.write(temp_file_obj.read(max_chunk))
         temp_file_obj.close()
         os.unlink(tar_location)
