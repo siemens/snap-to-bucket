@@ -166,9 +166,11 @@ class S3Handler:
         """
         meta_data = dict()
         content_type = 'application/x-tar'
-        timestr = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
+        timestr = datetime.now().isoformat(timespec='seconds')
+        created = snapshot['created'].isoformat(timespec='seconds')
         name = snapshot['name'].replace(' ', '+').replace('/', '_')
-        key = f"snap/{name}/{snapshot['id']}-{timestr}"
+        key = f"snap/{name}/{snapshot['id']}-{created}-{timestr}"
+        meta_data["creation-time"] = snapshot['created'].isoformat()
         if partno == -1:
             key = f"{key}.tar"
             if self.gzip:

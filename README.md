@@ -171,10 +171,11 @@ use delete with caution
 
 The script will store snapshots with following structure in S3:
 ```
-snap/<snapshot-name>/<snapshot-id>-<%Y-%m-%d_%H-%M-%S-%f>.tar
+snap/<snapshot-name>/<snapshot-id>-<creation-time>-<now-time>.tar
 ```
 
 The snaphost name gets spaces ` ` and `/` replaces as `+` and `_` respectively.
+And the date/time is in ISO 8601 format
 
 This section is controlled by `get_key_for_upload()` of `S3Handler`.
 
