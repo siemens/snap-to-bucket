@@ -69,7 +69,7 @@ class SnapToBucket:
         self.__bucket = bucket
         self.__tag = tag
         self.__verbose = verbose
-        if volume_type in ['standard', 'io1', 'gp2', 'sc1', 'st1']:
+        if volume_type in ['standard', 'io1', 'gp2', 'gp3', 'sc1', 'st1']:
             self.__volume_type = volume_type
         else:
             raise Exception(f"Unrecognized volume type {volume_type} passed")

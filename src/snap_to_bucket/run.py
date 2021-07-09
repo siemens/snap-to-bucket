@@ -89,7 +89,7 @@ def entrypoint():
                         default="snap-to-bucket")
     parser.add_argument("--type", help="volume type (default: %(default)s)",
                         required=False, default="gp2",
-                        choices=['standard', 'io1', 'gp2', 'sc1', 'st1'])
+                        choices=['standard', 'io1', 'gp2', 'gp3', 'sc1', 'st1'])
     parser.add_argument("--storage-class", help="storage class for S3 objects " +
                         "(default: %(default)s)", required=False,
                         default="STANDARD",

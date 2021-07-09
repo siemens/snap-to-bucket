@@ -375,8 +375,9 @@ class S3Handler:
                     download_key_name = key
                     break
         if download_key_name == None:
-            raise Exception(f"Unable to part '{partno}' under key {key}")
+            raise Exception(f"Unable to find part '{partno}' under key {key}")
         self.temp_download = os.path.join(restore_dir, download_key_name)
+        os.makedirs(os.path.dirname(self.temp_download), exist_ok=True)
         size = self.s3client.head_object(Bucket=self.bucket,
                                          Key=download_key_name)['ContentLength']
         progress = ProgressPercentage(key, size)
