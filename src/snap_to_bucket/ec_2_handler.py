@@ -97,6 +97,7 @@ class Ec2Handler:
                 snapshot = dict()
                 snapshot['id'] = snap['SnapshotId']
                 snapshot['created'] = snap['StartTime']
+                snapshot['volumesize'] = snap['VolumeSize']
                 for tag in snap['Tags']:
                     if tag['Key'].lower() == "name":
                         snapshot['name'] = tag['Value']

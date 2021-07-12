@@ -171,6 +171,7 @@ class S3Handler:
         name = snapshot['name'].replace(' ', '+').replace('/', '_')
         key = f"snap/{name}/{snapshot['id']}-{created}-{timestr}"
         meta_data["creation-time"] = snapshot['created'].isoformat()
+        meta_data["snap-volume-size"] = f"{snapshot['volumesize']} GiB"
         if partno == -1:
             key = f"{key}.tar"
             if self.gzip:
