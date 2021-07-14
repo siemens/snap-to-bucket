@@ -215,7 +215,7 @@ class SnapToBucket:
             if no_of_objects == 1:
                 temp_path = self.__s3handler.download_key(self.__restore_key,
                                                         -1, self.__restore_dir)
-                self.__fshandler.untar(temp_path)
+                self.__fshandler.untar_single_file(temp_path)
             else:
                 for i in range(1, no_of_objects + 1):
                     temp_path = self.__s3handler.download_key(
