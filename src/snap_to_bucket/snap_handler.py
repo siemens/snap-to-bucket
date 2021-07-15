@@ -161,13 +161,11 @@ class SnapToBucket:
                 print("Error occurred during S3 upload for snapshot '" +
                       snapshot['id'] + "'", file=sys.stderr)
                 print(f"Deleting volume '{volumeid}'", file=sys.stderr)
+                raise e
+            finally:
                 self.__fshandler.unmount_volume()
                 self.__ec2handler.detach_volume(volumeid)
                 self.__ec2handler.delete_volume(volumeid)
-                raise e
-            self.__fshandler.unmount_volume()
-            self.__ec2handler.detach_volume(volumeid)
-            self.__ec2handler.delete_volume(volumeid)
             if self.__delete_snap:
                 self.__ec2handler.delete_snapshot(snapshot)
             else:

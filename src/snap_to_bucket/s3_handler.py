@@ -11,6 +11,7 @@ __author__ = 'Siemens AG'
 import gc
 import os
 import sys
+import time
 import base64
 import hashlib
 import threading
@@ -19,6 +20,7 @@ from subprocess import PIPE, Popen
 
 import boto3
 import psutil
+from botocore.exceptions import ClientError
 
 
 class ProgressPercentage(object):
@@ -53,7 +55,12 @@ class S3Handler:
     :ivar split_size: Size in bytes to split tar at
     :ivar gzip: True to compress tar with gzip
     :ivar storage_class: Storage class of S3 object
+    :ivar FIFTY_MB: Fifty MiB in bytes
+    :ivar FIVE_GB: Five GiB in bytes
     """
+
+    FIFTY_MB = 50 * (1024 ** 2)
+    FIVE_GB = (5 * (1024 ** 3))
 
     def __init__(self, bucket, split_size=5497558138880.0, gzip=False,
                  storage_class="STANDARD", verbose=0):
@@ -220,9 +227,6 @@ class S3Handler:
         :type size: integer
         """
         uploaded_bytes = 0
-        tar_read_bytes = 0
-        fifty_mb = 50 * (1024 ** 2)
-        five_gb = (5 * (1024 ** 3))
         if self.split_size >= size:
             if self.verbose > 1:
                 print("Uploading snapshot as a single file as " +
@@ -230,7 +234,6 @@ class S3Handler:
             partno = -1
         else:
             partno = 1
-        (key, uploadid) = self.__get_key_uploadid(snapshot, size, partno)
         tar_process = Popen(["tar", "--directory", path, "--create",
                              "--preserve-permissions", "."], stdout=PIPE)
         read_process = tar_process
@@ -238,25 +241,55 @@ class S3Handler:
             gzip_process = Popen(["gzip", "--to-stdout", "-6"],
                                  stdin=tar_process.stdout, stdout=PIPE)
             read_process = gzip_process
+        more_to_read = True
+        try:
+            while more_to_read:
+                (key, uploadid) = self.__get_key_uploadid(snapshot, size,
+                                                          partno)
+                (uploaded_bytes, more_to_read) = self.__read_and_upload_part(
+                    read_process, uploaded_bytes, key, uploadid)
+                partno += 1
+        finally:
+            read_process = None
+            if self.gzip:
+                gzip_process.wait()
+            tar_process.wait()
+        print()
+        if self.verbose > 0:
+            print("Multipart upload finished. Sending complete")
+
+    def __read_and_upload_part(self, read_process, uploaded_bytes, key,
+                               upload_id):
+        """
+        Prepare an upload a single part of the tar.
+
+        1. Read the data from read_process
+        2. Upload it as multipart upload
+        3. Check if there is more data to be uploaded
+        4. Set the flag and complete the multipart upload
+
+        :param read_process: The process to read from
+        :type read_process: subprocess.Popen
+        :param uploaded_bytes: No of bytes already uploaded
+        :type uploaded_bytes: integer
+        :param key: S3 key
+        :type key: string
+        :param upload_id: S3 multipart upload id
+        :type upload_id: string
+
+        :return: No of total bytes uploaded, is there more data to process
+        :rtype: dict(integer, boolean)
+        """
+        tar_read_bytes = 0
         upload_partid = 1
         parts_info = list()
+        more_to_read = True
         print(f"Uploading {key} to {self.bucket} bucket")
         while True:
             free_mem = psutil.virtual_memory().available
-            if free_mem > five_gb:
-                free_mem = five_gb
-            max_chunk = free_mem - fifty_mb
-            if (tar_read_bytes >= self.split_size):
-                self.__complete_upload(key, uploadid, parts_info)
-                partno += 1
-                parts_info = list()
-                upload_partid = 1
-                tar_read_bytes = 0
-                if len(read_process.stdout.peek()) != 0:
-                    (key, uploadid) = self.__get_key_uploadid(snapshot, size,
-                                                              partno)
-                else:
-                    break
+            if free_mem > self.FIVE_GB:
+                free_mem = self.FIVE_GB
+            max_chunk = free_mem - self.FIFTY_MB
             if tar_read_bytes + max_chunk > self.split_size:
                 read_chunk = self.split_size - tar_read_bytes
             else:
@@ -264,20 +297,14 @@ class S3Handler:
             try:
                 inline = read_process.stdout.read(read_chunk)
                 if len(inline) == 0:
-                    self.__complete_upload(key, uploadid, parts_info)
+                    # No more data to read
+                    more_to_read = False
                     break
                 tar_read_bytes += len(inline)
                 uploaded_bytes += len(inline)
-                resp = self.s3client.upload_part(
-                    Body=inline,
-                    Bucket=self.bucket,
-                    ContentLength=len(inline),
-                    ContentMD5=self.__byte_checksum(inline),
-                    Key=key,
-                    PartNumber=upload_partid,
-                    UploadId=uploadid
-                )
-                inline = None
+                resp = self.__upload_s3_part(inline, key, upload_partid,
+                                             upload_id)
+                del inline
                 parts_info.append({
                     'ETag': resp['ETag'],
                     'PartNumber': upload_partid
@@ -286,29 +313,70 @@ class S3Handler:
                     print(f"Part # {upload_partid}, ", end='')
                 print("Uploaded " +
                       str(round(uploaded_bytes / (1024 ** 2), 2)) +
-                      " Mb (total) ", end="\r")
+                      " MiB (total) ", end="\r")
                 upload_partid += 1
                 gc.collect()
+                if (tar_read_bytes >= self.split_size):
+                    # One split upload completed
+                    break
             except Exception as e:
                 print("\nMultipart upload failed. Trying to abort",
                       file=sys.stderr)
                 self.s3client.abort_multipart_upload(
                     Bucket=self.bucket,
                     Key=key,
-                    UploadId=uploadid
+                    UploadId=upload_id
                 )
                 raise e
-        read_process = None
-        if self.gzip:
-            gzip_process.wait()
-        tar_process.wait()
-        print()
-        if self.verbose > 0:
-            print("Multipart upload finished. Sending complete")
+        self.__complete_upload(key, upload_id, parts_info)
+        return uploaded_bytes, more_to_read
 
-    def __complete_upload(self, key, uploadid, partlist):
+    def __upload_s3_part(self, body, key, part_id, upload_id, retry_count=0):
+        """
+        Upload a part of S3 multipart upload.
+
+        The function also reties failed calls. Every upload request, if failed,
+        will be retried 4 times at 4 seconds of intervals.
+
+        :param body: Body of the upload
+        :param key: S3 object key
+        :type key: string
+        :param part_id: Upload part ID
+        :type part_id: int
+        :param upload_id: Multipart upload's Upload ID
+        :type upload_id: string
+        :param retry_count: How many retries have been done.
+        :type retry_count: int
+
+        :return: Response from S3
+
+        :raises Exception: If all upload attempt fails
+        """
+        if retry_count > 3:
+            raise Exception("S3 multipart part upload failed")
+        try:
+            return self.s3client.upload_part(
+                Body=body,
+                Bucket=self.bucket,
+                ContentLength=len(body),
+                ContentMD5=self.__byte_checksum(body),
+                Key=key,
+                PartNumber=part_id,
+                UploadId=upload_id
+            )
+        except ClientError as error:
+            print(f"Failed: '{error.response['Error']['Message']}'.\nRetying.",
+                  file=sys.stderr)
+            time.sleep(4.0)
+            return self.__upload_s3_part(body, key, part_id, upload_id,
+                                         retry_count + 1)
+
+    def __complete_upload(self, key, uploadid, partlist, retry_count=0):
         """
         Complete a multipart upload
+
+        The function also reties failed calls. Every upload request, if failed,
+        will be retried 4 times at 4 seconds of intervals.
 
         :param key: Key of the upload
         :type key: string
@@ -316,15 +384,32 @@ class S3Handler:
         :type uploadid: string
         :param partlist: List of uploaded parts
         :type partlist: list(dict())
+
+        :raises Exception: If all upload attempt fails, abort uploads.
         """
-        self.s3client.complete_multipart_upload(
-            Bucket=self.bucket,
-            Key=key,
-            MultipartUpload={
-                'Parts': partlist
-            },
-            UploadId=uploadid
-        )
+        if retry_count > 3:
+            print("\nMultipart upload failed. Trying to abort",
+                  file=sys.stderr)
+            self.s3client.abort_multipart_upload(
+                Bucket=self.bucket,
+                Key=key,
+                UploadId=uploadid
+            )
+            raise Exception("S3 upload failed")
+        try:
+            self.s3client.complete_multipart_upload(
+                Bucket=self.bucket,
+                Key=key,
+                MultipartUpload={
+                    'Parts': partlist
+                },
+                UploadId=uploadid
+            )
+        except ClientError as error:
+            print(f"Failed: '{error.response['Error']['Message']}'.\nRetying.",
+                  file=sys.stderr)
+            time.sleep(4.0)
+            self.__complete_upload(key, uploadid, partlist, retry_count + 1)
         if self.verbose > 0:
             print(f"\nCompleted multipart upload, key: {key}")
 
