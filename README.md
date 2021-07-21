@@ -171,10 +171,11 @@ use delete with caution
 
 The script will store snapshots with following structure in S3:
 ```
-snap/<snapshot-name>/<snapshot-id>-<%Y-%m-%d_%H-%M-%S-%f>.tar
+snap/<snapshot-name>/<snapshot-id>-<creation-time>-<now-time>.tar
 ```
 
 The snaphost name gets spaces ` ` and `/` replaces as `+` and `_` respectively.
+And the date/time is in ISO 8601 format.
 
 This section is controlled by `get_key_for_upload()` of `S3Handler`.
 
@@ -185,6 +186,8 @@ This section is controlled by `get_key_for_upload()` of `S3Handler`.
 1. Create a new volume of the desired size in AWS and attach to an instance.
     - You can also check for `x-amz-meta-disc-size` metadata attached to the S3
       object to get the estimated size of unpacked files.
+    - The meta tag `snap-volume-size` also stores the size of volume from which
+      the snapshot was created.
 2. Download the snapshot from S3 to the instance.
     1. If the upload was splitted, all the parts must be combined into one.
         - `cat <downloaded_parts> > <single_huge>.tar`
