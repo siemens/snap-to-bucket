@@ -13,6 +13,7 @@ import re
 import sys
 import time
 import json
+import shutil
 import subprocess
 from subprocess import PIPE, Popen
 
@@ -27,8 +28,6 @@ class FsHandler:
     :ivar verbose: Verbosity level (0-3)
     :ivar device: The device to be mounted
     """
-
-    TEN_MB = 10 * (1024 ** 2)
 
     def __init__(self, mount_point, verbose=0):
         """
@@ -196,15 +195,36 @@ class FsHandler:
             if ".tar.gz" in tar_location:
                 tar_options.append("--gzip")
             self.untar_process = Popen(tar_options, stdin=PIPE)
-        temp_file_obj = open(tar_location, "rb")
-        temp_file_obj.seek(0, os.SEEK_END)
-        file_length = temp_file_obj.tell()
-        temp_file_obj.seek(0, os.SEEK_SET)
-        while temp_file_obj.tell() < file_length:
-            free_mem = psutil.virtual_memory().available
-            max_chunk = free_mem - self.TEN_MB
-            self.untar_process.stdin.write(temp_file_obj.read(max_chunk))
-        temp_file_obj.close()
+        with open(tar_location, "rb") as temp_file_obj:
+            shutil.copyfileobj(temp_file_obj, self.untar_process.stdin)
+        self.untar_process.stdin.flush()
+        os.unlink(tar_location)
+
+    def untar_single_file(self, tar_location):
+        """
+        Start untar process for a single part tars
+
+        1. Start untar process
+          a. If tar failed, raise exception
+        2. Remove the tar file
+
+        :param tar_location: Location of the tar file
+        :type tar_location: string
+        :raises Exception: If tar process failes
+        """
+        print(f"Untaring file '{tar_location}' to '{self.mount_point}'")
+        tar_options = ["tar", "--extract", "--directory", self.mount_point,
+                       "--preserve-permissions", "--preserve-order"]
+        if ".tar.gz" in tar_location:
+            tar_options.append("--gzip")
+        tar_options.extend(["--file", tar_location])
+        untar_process = Popen(tar_options, stdout=PIPE, stderr=PIPE)
+        response = untar_process.communicate()
+        if untar_process.returncode != 0:
+            output = response[0].decode('UTF-8').strip()
+            error = response[1].decode('UTF-8').strip()
+            print(f"Untar failed: {output}\n{error}.", file=sys.stderr)
+            raise Exception("Tar failed")
         os.unlink(tar_location)
 
     def terminate_tar(self):
@@ -212,7 +232,9 @@ class FsHandler:
         Close the untar process
         """
         self.untar_process.stdin.close()
-        self.untar_process.wait()
+        returncode = self.untar_process.wait()
+        if returncode != 0:
+            print(f"Untar returned: {returncode}", file=sys.stderr)
 
     def mount_required_folders(self):
         """
