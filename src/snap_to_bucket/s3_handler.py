@@ -55,11 +55,11 @@ class S3Handler:
     :ivar split_size: Size in bytes to split tar at
     :ivar gzip: True to compress tar with gzip
     :ivar storage_class: Storage class of S3 object
-    :ivar FIFTY_MB: Fifty MiB in bytes
+    :ivar FIVE_HUNDRED_MB: Five hundred MiB in bytes
     :ivar FIVE_GB: Five GiB in bytes
     """
 
-    FIFTY_MB = 50 * (1024 ** 2)
+    FIVE_HUNDRED_MB = 500 * (1024 ** 2)
     FIVE_GB = (5 * (1024 ** 3))
 
     def __init__(self, bucket, split_size=5497558138880.0, gzip=False,
@@ -290,9 +290,9 @@ class S3Handler:
         print(f"Uploading {key} to {self.bucket} bucket")
         while True:
             free_mem = psutil.virtual_memory().available
-            if free_mem > self.FIVE_GB:
+            if free_mem > self.FIVE_GB: # Maximum part size is 5 GiB
                 free_mem = self.FIVE_GB
-            max_chunk = free_mem - self.FIFTY_MB
+            max_chunk = free_mem - self.FIVE_HUNDRED_MB
             if tar_read_bytes + max_chunk > self.split_size:
                 read_chunk = self.split_size - tar_read_bytes
             else:
@@ -325,6 +325,7 @@ class S3Handler:
             except Exception as e:
                 print("\nMultipart upload failed. Trying to abort",
                       file=sys.stderr)
+                inline = None # Safely drop the data
                 self.s3client.abort_multipart_upload(
                     Bucket=self.bucket,
                     Key=key,
@@ -361,14 +362,13 @@ class S3Handler:
             return self.s3client.upload_part(
                 Body=body,
                 Bucket=self.bucket,
-                ContentLength=len(body),
                 ContentMD5=self.__byte_checksum(body),
                 Key=key,
                 PartNumber=part_id,
                 UploadId=upload_id
             )
         except ClientError as error:
-            print(f"Failed: '{error.response['Error']['Message']}'.\nRetying.",
+            print(f"Failed: '{error.response['Error']['Message']}'.\nRetrying.",
                   file=sys.stderr)
             time.sleep(4.0)
             return self.__upload_s3_part(body, key, part_id, upload_id,
@@ -409,7 +409,7 @@ class S3Handler:
                 UploadId=uploadid
             )
         except ClientError as error:
-            print(f"Failed: '{error.response['Error']['Message']}'.\nRetying.",
+            print(f"Failed: '{error.response['Error']['Message']}'.\nRetrying.",
                   file=sys.stderr)
             time.sleep(4.0)
             self.__complete_upload(key, uploadid, partlist, retry_count + 1)
