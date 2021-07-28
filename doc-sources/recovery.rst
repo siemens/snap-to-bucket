@@ -9,6 +9,8 @@ Manually
 #. Create a new volume of the desired size in AWS and attach to an instance.
     * You can also check for ``x-amz-meta-disc-size`` metadata attached to the S3
       object to get the estimated size of unpacked files.
+    * The meta tag `snap-volume-size` also stores the size of volume from which
+      the snapshot was created.
 
 #. Download the snapshot from S3 to the instance.
 
@@ -74,5 +76,8 @@ example ``snap/<snapshot-name>``. The scipt will handle single file upload and
 split uploads accordingly.
 
 Use ``--boot`` flag if the snapshot to be restored was a bootable volume.
+
+The flag ``--restore-dir=RESTORE_DIR`` can be used to point the directory where
+object from S3 can be downloaded. It defaults to ``/tmp/snap-to-bucket``.
 
 Restore accepts other options ``--type`` and ``-m/--mount``.

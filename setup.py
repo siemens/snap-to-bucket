@@ -32,7 +32,7 @@ def read(fname):
 
 metadata = dict(
     name="snap_to_bucket",
-    version="1.0.0",
+    version="1.0.1",
     author="Gaurav Mishra",
     author_email="mishra.gaurav@siemens.com",
     description=("Move AWS EBS Snapshots to S3 Buckets"),

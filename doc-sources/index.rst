@@ -96,9 +96,10 @@ Options
 .. code-block::
 
     usage: snap_to_bucket [-h] [-v] -b BUCKET [--proxy PROXY] [--noproxy NOPROXY]
-                          [-t TAG] [--type {standard,io1,gp2,sc1,st1}]
+                          [-t TAG] [--type {standard,io1,gp2,gp3,sc1,st1}]
                           [--storage-class {STANDARD,REDUCED_REDUNDANCY,STANDARD_IA,ONEZONE_IA,GLACIER,INTELLIGENT_TIERING,DEEP_ARCHIVE}]
                           [-m DIR] [-d] [-s SIZE] [-g] [-r] [-k KEY] [--boot]
+                          [--restore-dir RESTORE_DIR]
 
     snap_to_bucket is a simple tool based on boto3 to move snapshots to S3 buckets
 
@@ -111,12 +112,13 @@ Options
       --noproxy NOPROXY     comma separated list of domains which do not require
                             proxy
       -t TAG, --tag TAG     tag on snapshots (default: snap-to-bucket)
-      --type {standard,io1,gp2,sc1,st1}
+      --type {standard,io1,gp2,gp3,sc1,st1}
                             volume type (default: gp2)
       --storage-class {STANDARD,REDUCED_REDUNDANCY,STANDARD_IA,ONEZONE_IA,GLACIER,INTELLIGENT_TIERING,DEEP_ARCHIVE}
                             storage class for S3 objects (default: STANDARD)
       -m DIR, --mount DIR   mount point for disks (default: /mnt/snaps)
-      -d, --delete          delete snapshot after transfer (default: False)
+      -d, --delete          delete snapshot after transfer. Use with caution!
+                            (default: False)
       -s SIZE, --split SIZE
                             split tar in chunks no bigger than (allowed suffix
                             b,k,m,g,t) (default: 5t)
@@ -125,8 +127,9 @@ Options
       -k KEY, --key KEY     key of the snapshot folder to restore (required if
                             restoring)
       --boot                was the snapshot a bootable volume?
-
-    use delete with caution
+      --restore-dir RESTORE_DIR
+                            directory to store S3 objects for restoring (default:
+                            /tmp/snap-to-bucket)
 
 See :ref:`migrate` for steps to migrate the EBS Snapshots to S3.
 
@@ -136,9 +139,9 @@ Files on S3
 ==============
 
 The script will store snapshots with following structure in S3:
-    ``snap/<snapshot-name>/<snapshot-id>-<%Y-%m-%d_%H-%M-%S-%f>.tar``
+    ``snap/<snapshot-name>/<snapshot-id>-<creation-time>-<now-time>.tar``
 
-The snaphost name gets spaces and ``/`` replaces as ``+`` and ``_`` respectively.
+The snaphost name gets spaces and ``/`` replaces as ``+`` and ``_`` respectively. And the date/time is in ISO 8601 format.
 
 This section is controlled by ``get_key_for_upload()`` of ``S3Handler`` class.
 
