@@ -10,123 +10,128 @@ __author__ = 'Siemens AG'
 
 import os
 import re
+import sys
 import math
-import argparse
+
+import click
+from pkg_resources import get_distribution
 
 from snap_to_bucket import SnapToBucket
 
 
-def main(args):
+class VolSize(click.ParamType):
     """
-    The real magic starts here
+    Understand the volume split size arguments
     """
-    snap_to_bucket = SnapToBucket(args.bucket, args.tag, args.verbose,
-                                  args.type, args.storage_class, args.mount,
-                                  args.delete, args.restore, args.key,
-                                  args.boot, args.restore_dir)
-    snap_to_bucket.update_proxy(args.proxy, args.noproxy)
-    snap_to_bucket.update_split_size(args.split)
-    if args.gzip:
+    name = 'split'
+
+    def convert(self, value, param, ctx):
+        """
+        Function to parse the split argument
+        """
+        if isinstance(value, str):
+            match_result = re.match(r"""^([\d\.]+)(b|k|m|g|t)$""", value,
+                                    re.RegexFlag.IGNORECASE | re.RegexFlag.MULTILINE)
+            if match_result:
+                size = match_result.group(1)
+                split_bytes = 0
+                if match_result.group(2) == "b":
+                    split_bytes = float(size)
+                elif match_result.group(2) == "k":
+                    split_bytes = float(size) * 1024.0
+                elif match_result.group(2) == "m":
+                    split_bytes = float(size) * 1024.0 * 1024.0
+                elif match_result.group(2) == "g":
+                    split_bytes = float(size) * 1024.0 * 1024.0 * 1024.0
+                elif match_result.group(2) == "t":
+                    split_bytes = float(size) * 1024.0 * \
+                        1024.0 * 1024.0 * 1024.0
+            else:
+                self.fail(
+                    f'{value} not in <size><b|k|m|g|t> format',
+                    param,
+                    ctx,
+                )
+        else:
+            split_bytes = float(value)
+        if split_bytes > 5497558138880.0:
+            self.fail(
+                f'Can not have spit size greater than 5t, {value} provided',
+                param,
+                ctx,
+            )
+        if split_bytes < 5242880.0:
+            self.fail(
+                f'Can not have spit size lesser than 5m, {value} provided',
+                param,
+                ctx,
+            )
+        return int(math.ceil(split_bytes))
+
+
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.version_option(get_distribution("snap_to_bucket").version)
+@click.option("-v", "--verbose", help="increase output verbosity (-vvv for " +
+              "more verbosity)", count=True, default=0)
+@click.option("--proxy", help="proxy to be used", default=None,
+              metavar="http_proxy", envvar="http_proxy")
+@click.option("--noproxy", help="comma separated list of domains " +
+              "which do not require proxy", default=None, metavar="no_proxy",
+              envvar="no_proxy")
+@click.option("-b", "--bucket", help="S3 bucket to push snaps in",
+              required=True, metavar="BUCKET")
+@click.option("-t", "--tag", help="tag on snapshots", default="snap-to-bucket",
+              show_default=True, metavar="TAG")
+@click.option("--type", help="volume type", default="gp2", show_default=True,
+              type=click.Choice(['standard', 'io1', 'gp2', 'gp3', 'sc1', 'st1'],
+                                case_sensitive=False))
+@click.option("--storage-class", help="storage class for S3 objects",
+              default="STANDARD", show_default=True,
+              type=click.Choice(['STANDARD', 'REDUCED_REDUNDANCY',
+                                 'STANDARD_IA', 'ONEZONE_IA', 'GLACIER',
+                                 'INTELLIGENT_TIERING', 'DEEP_ARCHIVE'],
+                                case_sensitive=False))
+@click.option("-m", "--mount", help="mount point for disks", metavar="DIR",
+              default="/mnt/snaps", show_default=True,
+              type=click.Path(exists=False, dir_okay=True, writable=True,
+                              file_okay=False, resolve_path=True))
+@click.option("-d", "--delete", help="delete snapshot after transfer. Use " +
+              "with caution!", is_flag=True, default=False, show_default=True)
+@click.option("-s", "--split", help="split tar in chunks no bigger than " +
+              "(allowed suffix b,k,m,g,t)  [default: 5t]", metavar="SIZE",
+              default="5t", type=VolSize())
+@click.option("-g", "--gzip", help="compress tar with gzip", is_flag=True,
+              default=False)
+@click.option("-r", "--restore", help="restore a snapshot", is_flag=True,
+              default=False)
+@click.option("-k", "--key", help="key of the snapshot folder to restore " +
+              "(required if restoring)", default=None)
+@click.option("--boot", help="was the snapshot a bootable volume?",
+              is_flag=True, default=False)
+@click.option("--restore-dir", help="directory to store S3 objects for " +
+              "restoring", default="/tmp/snap-to-bucket", show_default=True,
+              type=click.Path(exists=False, dir_okay=True, writable=True,
+                              file_okay=False, resolve_path=True))
+def main(verbose, proxy, noproxy, bucket, tag, type, storage_class, mount,
+         delete, split, gzip, restore, key, boot, restore_dir):
+    """
+    snap_to_bucket is a simple tool based on boto3 to move snapshots to S3
+    buckets.
+    """
+    if os.geteuid() != 0:
+        click.echo("You need to have root privileges to run this script.\n" +
+                   "Please try again, this time using 'sudo'. Exiting.",
+                   err=True)
+        sys.exit(5)
+    snap_to_bucket = SnapToBucket(bucket, tag, verbose, type, storage_class,
+                                  mount, delete, restore, key, boot,
+                                  restore_dir)
+    snap_to_bucket.update_proxy(proxy, noproxy)
+    snap_to_bucket.update_split_size(split)
+    if gzip:
         snap_to_bucket.perform_gzip()
     snap_to_bucket.initiate_migration()
 
 
-def split_size(arg):
-    """
-    Function to parse the split argument
-
-    :param arg: Argument from user
-    :type arg: string
-
-    :return: parsed size in bytes
-    :rtype: integer
-    """
-    match_result = re.match(r"^([\d\.]+)(b|k|m|g|t)$", arg,
-                            re.RegexFlag.IGNORECASE | re.RegexFlag.MULTILINE)
-    if match_result:
-        value = match_result.group(1)
-        spit_bytes = 0
-        if match_result.group(2) == "b":
-            spit_bytes = float(value)
-        elif match_result.group(2) == "k":
-            spit_bytes = float(value) * 1024.0
-        elif match_result.group(2) == "m":
-            spit_bytes = float(value) * 1024.0 * 1024.0
-        elif match_result.group(2) == "g":
-            spit_bytes = float(value) * 1024.0 * 1024.0 * 1024.0
-        elif match_result.group(2) == "t":
-            spit_bytes = float(value) * 1024.0 * 1024.0 * 1024.0 * 1024.0
-        if spit_bytes > 5497558138880.0:
-            raise argparse.ArgumentTypeError("Can not have spit size greater " +
-                                             "than 5t")
-        if spit_bytes < 5242880.0:
-            raise argparse.ArgumentTypeError("Can not have spit size lesser " +
-                                             "than 5m")
-        return int(math.ceil(spit_bytes))
-    else:
-        raise argparse.ArgumentTypeError(f"{arg} not in <size><b|k|m|g|t> format")
-
-
-def entrypoint():
-    """
-    Entrypoint for the main program
-    """
-    parser = argparse.ArgumentParser(description='''
-    snap_to_bucket is a simple tool based on boto3 to move snapshots to S3
-    buckets
-    ''')
-    parser.add_argument("-v", "--verbose", help="increase output verbosity " +
-                        "(-vvv for more verbosity)", action="count", default=0)
-    parser.add_argument("-b", "--bucket", help="S3 bucket to push snaps in",
-                        required=True)
-    parser.add_argument("--proxy", help="proxy to be used", default=None,
-                        required=False)
-    parser.add_argument("--noproxy", help="comma separated list of domains " +
-                        "which do not require proxy", default=None,
-                        required=False)
-    parser.add_argument("-t", "--tag", help="tag on snapshots " +
-                        "(default: %(default)s)", required=False,
-                        default="snap-to-bucket")
-    parser.add_argument("--type", help="volume type (default: %(default)s)",
-                        required=False, default="gp2",
-                        choices=['standard', 'io1', 'gp2', 'gp3', 'sc1', 'st1'])
-    parser.add_argument("--storage-class", help="storage class for S3 objects " +
-                        "(default: %(default)s)", required=False,
-                        default="STANDARD",
-                        choices=['STANDARD', 'REDUCED_REDUNDANCY',
-                                 'STANDARD_IA', 'ONEZONE_IA', 'GLACIER',
-                                 'INTELLIGENT_TIERING', 'DEEP_ARCHIVE'])
-    parser.add_argument("-m", "--mount", help="mount point for disks " +
-                        "(default: %(default)s)", required=False,
-                        metavar="DIR", default="/mnt/snaps")
-    parser.add_argument("-d", "--delete", help="delete snapshot after " +
-                        "transfer. Use with caution! (default: %(default)s)",
-                        required=False, action="store_true", default=False)
-    parser.add_argument("-s", "--split", help="split tar in chunks no bigger " +
-                        "than (allowed suffix b,k,m,g,t) (default: %(default)s)",
-                        metavar="SIZE", required=False, default="5t",
-                        type=split_size)
-    parser.add_argument("-g", "--gzip", help="compress tar with gzip",
-                        required=False, action="store_true", default=False)
-    parser.add_argument("-r", "--restore", help="restore a snapshot",
-                        required=False, action="store_true", default=False)
-    parser.add_argument("-k", "--key", help="key of the snapshot folder to " +
-                        "restore (required if restoring)", default=None,
-                        required=False)
-    parser.add_argument("--boot", help="was the snapshot a bootable volume?",
-                        action="store_true", default=False, required=False)
-    parser.add_argument("--restore-dir", help="directory to store S3 objects " +
-                        "for restoring (default: %(default)s)",
-                        default="/tmp/snap-to-bucket", required=False)
-    args = parser.parse_args()
-
-    if os.geteuid() != 0:
-        parser.exit(5,
-                    "You need to have root privileges to run this script.\n" +
-                    "Please try again, this time using 'sudo'. Exiting.\n")
-
-    main(args)
-
-
 if __name__ == '__main__':
-    entrypoint()
+    main()
