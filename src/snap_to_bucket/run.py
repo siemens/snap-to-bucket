@@ -83,8 +83,14 @@ class VolSize(click.ParamType):
 @click.option("-t", "--tag", help="tag on snapshots", default="snap-to-bucket",
               show_default=True, metavar="TAG")
 @click.option("--type", help="volume type", default="gp2", show_default=True,
-              type=click.Choice(['standard', 'io1', 'gp2', 'gp3', 'sc1', 'st1'],
-                                case_sensitive=False))
+              type=click.Choice(
+                    ['standard', 'io1', 'io2', 'gp2', 'gp3', 'sc1', 'st1'],
+                    case_sensitive=False))
+@click.option("--iops", help="volume IOPS, valid only for gp3, io1 and io2",
+              default=None, type=click.INT, required=False)
+@click.option("--throughput", help="volume throughput in MiB/s. Valid only " +
+              "for gp3 volumes", default=None, metavar="THROUGHPUT",
+              type=click.IntRange(125, 1000, clamp=True))
 @click.option("--storage-class", help="storage class for S3 objects",
               default="STANDARD", show_default=True,
               type=click.Choice(['STANDARD', 'REDUCED_REDUNDANCY',
@@ -113,11 +119,25 @@ class VolSize(click.ParamType):
               type=click.Path(exists=False, dir_okay=True, writable=True,
                               file_okay=False, resolve_path=True))
 def main(verbose, proxy, noproxy, bucket, tag, type, storage_class, mount,
-         delete, split, gzip, restore, key, boot, restore_dir):
+         delete, split, gzip, restore, key, boot, restore_dir, iops,
+         throughput):
     """
     snap_to_bucket is a simple tool based on boto3 to move snapshots to S3
     buckets.
     """
+    if type not in ['gp3', 'io1', 'io2'] and iops is not None:
+        raise click.BadOptionUsage("iops", "Can set IOPS only for gp3, io1 &" +
+                                   f" io2 type volume, {type} set")
+    if type == 'gp3' and iops is not None and (iops < 3000 or iops > 16000):
+        raise click.BadOptionUsage("iops", "gp3 supports 3000-16000 IOPS, " +
+                                   f"{iops} passed")
+    elif type in['io1', 'io2'] and iops is not None and \
+            (iops < 100 or iops > 64000):
+        raise click.BadOptionUsage("iops", f"{type} supports 100-64000 IOPS, " +
+                                   f"{iops} passed")
+    if type != 'gp3' and throughput is not None:
+        raise click.BadOptionUsage("throughput", "Only gp3 supports " +
+                                   f"throughput, {type} passed")
     if os.geteuid() != 0:
         click.echo("You need to have root privileges to run this script.\n" +
                    "Please try again, this time using 'sudo'. Exiting.",
@@ -126,6 +146,10 @@ def main(verbose, proxy, noproxy, bucket, tag, type, storage_class, mount,
     snap_to_bucket = SnapToBucket(bucket, tag, verbose, type, storage_class,
                                   mount, delete, restore, key, boot,
                                   restore_dir)
+    if iops is not None:
+        snap_to_bucket.update_iops(iops)
+    if throughput is not None:
+        snap_to_bucket.update_throughput(throughput)
     snap_to_bucket.update_proxy(proxy, noproxy)
     snap_to_bucket.update_split_size(split)
     if gzip:

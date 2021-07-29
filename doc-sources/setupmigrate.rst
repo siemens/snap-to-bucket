@@ -41,6 +41,10 @@ If you want to mount the devices on different location, use ``-m/--mount`` optio
 To change the type of volume, use ``--type`` option (like ``io1`` for higher
 throughput).
 
+The ``io1``, ``io2`` and ``gp3`` allow to provide additional IOPS, which can be
+provided with ``--iops`` flag. ``gp3`` also allows setting the throughput of
+the volume and can be set with ``--throughput`` flag.
+
 The default storage class used for S3 objects will be STANDARD. To use other
 classes like STANDARD_IA or even GLACIER, use ``--storage-class`` option.
 
