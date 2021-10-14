@@ -6,16 +6,16 @@ SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra <mishra.gaurav@siemens.co
 
 SPDX-License-Identifier: MIT
 """
-__author__ = 'Siemens AG'
+__author__ = "Siemens AG"
 
 import os
 import sys
 import json
 import math
+import urllib.request
 from datetime import datetime
 
 import boto3
-import urllib.request
 
 
 class Ec2Handler:
@@ -57,16 +57,18 @@ class Ec2Handler:
         self.iops = iops
         self.throughput = throughput
         try:
-            response = urllib.request.urlopen('http://169.254.169.254/latest/dynamic/instance-identity/document/')
-        except urllib.error.URLError as e:
+            response = urllib.request.urlopen(
+                "http://169.254.169.254/latest/dynamic/instance-identity/document/")
+        except urllib.error.URLError as ex:
             print("Script needs to run on an EC2 instance", file=sys.stderr)
-            raise e
-        self.instance_info = json.loads(response.read().decode('UTF-8').strip())
+            raise ex
+        self.instance_info = json.loads(response.read().decode("UTF-8").strip())
+        response.close()
         if self.verbose > 0:
-            print("Current instance is '" + self.instance_info['instanceId'] +
+            print("Current instance is '" + self.instance_info["instanceId"] +
                   "'")
-        os.environ['AWS_DEFAULT_REGION'] = self.instance_info['region']
-        self.ec2client = boto3.client('ec2')
+        os.environ["AWS_DEFAULT_REGION"] = self.instance_info["region"]
+        self.ec2client = boto3.client("ec2")
 
     def get_snapshots(self):
         """
@@ -77,39 +79,39 @@ class Ec2Handler:
         :return: List of snapshots dictionaries with id and name
         :rtype: list()
         """
-        responses = list()
+        responses = []
         responses.append(self.ec2client.describe_snapshots(
             Filters=[
                 {
-                    'Name': 'tag:' + self.tag,
-                    'Values': [
-                        'migrate'
+                    "Name": "tag:" + self.tag,
+                    "Values": [
+                        "migrate"
                     ]
                 }
             ]
         ))
-        while(responses[-1].get('NextToken', None) != None):
+        while responses[-1].get("NextToken", None) is not None:
             responses.append(self.ec2client.describe_snapshots(
                 Filters=[
                     {
-                        'Name': 'tag:' + self.tag,
-                        'Values': [
-                            'migrate'
+                        "Name": "tag:" + self.tag,
+                        "Values": [
+                            "migrate"
                         ]
                     }
                 ],
-                NextToken=responses[-1]['NextToken']
+                NextToken=responses[-1]["NextToken"]
             ))
-        snapshots = list()
+        snapshots = []
         for response in responses:
-            for snap in response['Snapshots']:
-                snapshot = dict()
-                snapshot['id'] = snap['SnapshotId']
-                snapshot['created'] = snap['StartTime']
-                snapshot['volumesize'] = snap['VolumeSize']
-                for tag in snap['Tags']:
-                    if tag['Key'].lower() == "name":
-                        snapshot['name'] = tag['Value']
+            for snap in response["Snapshots"]:
+                snapshot = {}
+                snapshot["id"] = snap["SnapshotId"]
+                snapshot["created"] = snap["StartTime"]
+                snapshot["volumesize"] = snap["VolumeSize"]
+                for tag in snap["Tags"]:
+                    if tag["Key"].lower() == "name":
+                        snapshot["name"] = tag["Value"]
                         break
                 snapshots.append(snapshot)
         if self.verbose > 0:
@@ -134,31 +136,31 @@ class Ec2Handler:
             try to delete it and raise exception
         """
         arguments = {
-            'AvailabilityZone': self.instance_info['availabilityZone'],
-            'Encrypted': False,
-            'SnapshotId': snapshot['id'],
-            'VolumeType': self.volume_type
+            "AvailabilityZone": self.instance_info["availabilityZone"],
+            "Encrypted": False,
+            "SnapshotId": snapshot["id"],
+            "VolumeType": self.volume_type
         }
         if self.iops is not None:
-            arguments['Iops'] = self.iops
+            arguments["Iops"] = self.iops
         if self.throughput is not None:
-            arguments['Throughput'] = self.throughput
+            arguments["Throughput"] = self.throughput
         volumeid = self.ec2client.create_volume(
             **arguments,
             TagSpecifications=[{
-                'ResourceType': 'volume',
-                'Tags': [
+                "ResourceType": "volume",
+                "Tags": [
                     {
-                        'Key': self.tag,
-                        'Value': 'created'
+                        "Key": self.tag,
+                        "Value": "created"
                     },
                     {
-                        'Key': 'Name',
-                        'Value': 'snap-to-bucket-' + snapshot['id']
+                        "Key": "Name",
+                        "Value": "snap-to-bucket-" + snapshot["id"]
                     }
                 ]
             }]
-        )['VolumeId']
+        )["VolumeId"]
         if self.verbose > 1:
             print(f"Created '{volumeid}' volume")
         try:
@@ -166,12 +168,13 @@ class Ec2Handler:
                 if self.verbose > 2:
                     print(f"Volume '{volumeid}' is ready")
                 return volumeid
-        except Exception as e:
+        except Exception as ex:
             print(f"Timed out while waiting for '{volumeid}' to get ready",
                   file=sys.stderr)
             print("Attempting to delete the volume", file=sys.stderr)
             self.delete_volume(volumeid)
-            raise e
+            raise ex
+        return None
 
     def create_empty_volume(self, size):
         """
@@ -191,35 +194,34 @@ class Ec2Handler:
             try to delete it and raise exception
         """
         vol_size = math.ceil(size / (1024 ** 3)) * (1.25)
-        if vol_size < 1:
-            vol_size = 1
+        vol_size = max(vol_size, 1)
         timestr = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
         arguments = {
-            'AvailabilityZone': self.instance_info['availabilityZone'],
-            'Encrypted': False,
-            'Size': round(vol_size),
-            'VolumeType': self.volume_type
+            "AvailabilityZone": self.instance_info["availabilityZone"],
+            "Encrypted": False,
+            "Size": round(vol_size),
+            "VolumeType": self.volume_type
         }
         if self.iops is not None:
-            arguments['Iops'] = self.iops
+            arguments["Iops"] = self.iops
         if self.throughput is not None:
-            arguments['Throughput'] = self.throughput
+            arguments["Throughput"] = self.throughput
         volumeid = self.ec2client.create_volume(
             **arguments,
             TagSpecifications=[{
-                'ResourceType': 'volume',
-                'Tags': [
+                "ResourceType": "volume",
+                "Tags": [
                     {
-                        'Key': self.tag,
-                        'Value': 'restore-volume'
+                        "Key": self.tag,
+                        "Value": "restore-volume"
                     },
                     {
-                        'Key': 'Name',
-                        'Value': f'snap-to-bucket-{timestr}'
+                        "Key": "Name",
+                        "Value": f"snap-to-bucket-{timestr}"
                     }
                 ]
             }]
-        )['VolumeId']
+        )["VolumeId"]
         if self.verbose > 1:
             print(f"Created '{volumeid}' volume")
         try:
@@ -227,12 +229,13 @@ class Ec2Handler:
                 if self.verbose > 2:
                     print(f"Volume '{volumeid}' is ready")
                 return volumeid
-        except Exception as e:
+        except Exception as ex:
             print(f"Timed out while waiting for '{volumeid}' to get ready",
                   file=sys.stderr)
             print("Attempting to delete the volume", file=sys.stderr)
             self.delete_volume(volumeid)
-            raise e
+            raise ex
+        return None
 
     def __volume_is_ready(self, volumeid):
         """
@@ -243,11 +246,11 @@ class Ec2Handler:
 
         :raises botocore.exceptions.WaiterError: If the volume creation failed
         """
-        self.ec2client.get_waiter('volume_available').wait(
+        self.ec2client.get_waiter("volume_available").wait(
             VolumeIds=[volumeid],
             WaiterConfig={
-                'Delay': 10,
-                'MaxAttempts': 50
+                "Delay": 10,
+                "MaxAttempts": 50
             }
         )
         return True
@@ -261,7 +264,7 @@ class Ec2Handler:
 
         :raises botocore.exceptions.WaiterError: If the volume attachment failed
         """
-        self.ec2client.get_waiter('volume_in_use').wait(
+        self.ec2client.get_waiter("volume_in_use").wait(
             VolumeIds=[volumeid]
         )
         return True
@@ -275,7 +278,7 @@ class Ec2Handler:
 
         :raises botocore.exceptions.WaiterError: If the volume deletion failed
         """
-        self.ec2client.get_waiter('volume_deleted').wait(
+        self.ec2client.get_waiter("volume_deleted").wait(
             VolumeIds=[volumeid]
         )
         return True
@@ -292,24 +295,25 @@ class Ec2Handler:
         """
         try:
             self.ec2client.attach_volume(
-                Device='/dev/sdk',
-                InstanceId=self.instance_info['instanceId'],
+                Device="/dev/sdk",
+                InstanceId=self.instance_info["instanceId"],
                 VolumeId=volumeid
             )
-        except Exception as e:
+        except Exception as ex:
             print(f"Failed to attach volume '{volumeid}' to instance '" +
-                  self.instance_info['instanceId'] + "'", file=sys.stderr)
+                  self.instance_info["instanceId"] + "'", file=sys.stderr)
             print(f"Deleting volume '{volumeid}'", file=sys.stderr)
             self.delete_volume(volumeid)
-            raise e
+            raise ex
         if self.verbose > 1:
             print(f"Attaching volume '{volumeid}' to instance '" +
-                  self.instance_info['instanceId'] + "'")
+                  self.instance_info["instanceId"] + "'")
         if self.__volume_is_attached(volumeid):
             if self.verbose > 2:
                 print(f"Volume '{volumeid}' attached to '" +
-                      self.instance_info['instanceId'] + "'")
+                      self.instance_info["instanceId"] + "'")
             return True
+        return False
 
     def detach_volume(self, volumeid):
         """
@@ -325,18 +329,19 @@ class Ec2Handler:
                 Force=True,
                 VolumeId=volumeid
             )
-        except Exception as e:
+        except Exception as ex:
             print(f"Unable to detach volume '{volumeid}' from instance '" +
-                  self.instance_info['instanceId'] + "'", file=sys.stderr)
-            raise e
+                  self.instance_info["instanceId"] + "'", file=sys.stderr)
+            raise ex
         if self.verbose > 1:
             print(f"Detaching volume '{volumeid}' from instance '" +
-                  self.instance_info['instanceId'] + "'")
+                  self.instance_info["instanceId"] + "'")
         if self.__volume_is_ready(volumeid):
             if self.verbose > 2:
                 print(f"Volume '{volumeid}' detached from '" +
-                      self.instance_info['instanceId'] + "'")
+                      self.instance_info["instanceId"] + "'")
             return True
+        return False
 
     def delete_volume(self, volumeid):
         """
@@ -356,6 +361,7 @@ class Ec2Handler:
             if self.verbose > 2:
                 print(f"Volume '{volumeid}' deleted")
             return True
+        return False
 
     def delete_snapshot(self, snapshot):
         """
@@ -365,9 +371,9 @@ class Ec2Handler:
         :type snapshot: dict()
         """
         self.ec2client.delete_snapshot(
-            SnapshotId=snapshot['id']
+            SnapshotId=snapshot["id"]
         )
-        print(f"Deleting snapshot '{snapshot['id']}''")
+        print(f"Deleting snapshot '{snapshot['id']}'")
 
     def update_snapshot_tag(self, snapshot):
         """
@@ -378,12 +384,12 @@ class Ec2Handler:
         """
         self.ec2client.create_tags(
             Resources=[
-                snapshot['id']
+                snapshot["id"]
             ],
             Tags=[
                 {
-                    'Key': self.tag,
-                    'Value': 'transferred',
+                    "Key": self.tag,
+                    "Value": "transferred",
                 }
             ]
         )

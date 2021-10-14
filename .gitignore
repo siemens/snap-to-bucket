@@ -10,3 +10,5 @@ tags
 
 # Python
 *__pycache__/
+build
+*.egg-info

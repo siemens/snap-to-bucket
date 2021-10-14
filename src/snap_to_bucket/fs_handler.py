@@ -6,7 +6,7 @@ SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra <mishra.gaurav@siemens.co
 
 SPDX-License-Identifier: MIT
 """
-__author__ = 'Siemens AG'
+__author__ = "Siemens AG"
 
 import os
 import re
@@ -16,8 +16,6 @@ import json
 import shutil
 import subprocess
 from subprocess import PIPE, Popen
-
-import psutil
 
 
 class FsHandler:
@@ -41,8 +39,10 @@ class FsHandler:
         self.mount_point = mount_point
         self.verbose = verbose
         self.untar_process = None
+        self.device = None
 
-    def __wait_for_device_settle(self):
+    @staticmethod
+    def wait_for_device_settle():
         """
         Wait for device to settle
 
@@ -68,23 +68,23 @@ class FsHandler:
 
         :raises Exception: If none devices can be found
         """
-        lsblk_process = Popen(["lsblk", "--json", "--output",
-                               "NAME,SERIAL,MOUNTPOINT"], stdout=PIPE)
-        result = lsblk_process.communicate()[0].decode('UTF-8').strip()
+        with Popen(["lsblk", "--json", "--output",
+                "NAME,SERIAL,MOUNTPOINT"], stdout=PIPE) as lsblk_process:
+            result = lsblk_process.communicate()[0].decode("UTF-8").strip()
         devices = json.loads(result)
         blk_device = None
-        volume_serial = volumeid.replace('-', '')
-        for device in devices['blockdevices']:
-            if device['serial'] == volume_serial:
-                if 'children' in device:
-                    for child in device['children']:
-                        if child['mountpoint'] == self.mount_point:
-                            blk_device = "/dev/" + device['name']
+        volume_serial = volumeid.replace("-", "")
+        for device in devices["blockdevices"]:
+            if device["serial"] == volume_serial:
+                if "children" in device:
+                    for child in device["children"]:
+                        if child["mountpoint"] == self.mount_point:
+                            blk_device = "/dev/" + device["name"]
                             break
-                if blk_device == None:
-                    blk_device = "/dev/" + device['name']
+                if blk_device is None:
+                    blk_device = "/dev/" + device["name"]
                 break
-        if blk_device == None:
+        if blk_device is None:
             raise Exception
         return blk_device
 
@@ -101,23 +101,23 @@ class FsHandler:
 
         :raises Exception: If none mountable devices can be found
         """
-        lsblk_process = Popen(["lsblk", "--json", "--output",
-                               "NAME,SERIAL,MOUNTPOINT"], stdout=PIPE)
-        result = lsblk_process.communicate()[0].decode('UTF-8').strip()
+        with Popen(["lsblk", "--json", "--output",
+                "NAME,SERIAL,MOUNTPOINT"], stdout=PIPE) as lsblk_process:
+            result = lsblk_process.communicate()[0].decode("UTF-8").strip()
         devices = json.loads(result)
         blk_device = None
-        volume_serial = volumeid.replace('-', '')
-        for device in devices['blockdevices']:
-            if device['serial'] == volume_serial:
-                if 'children' in device:
-                    for child in device['children']:
-                        if child['mountpoint'] == None:
-                            blk_device = "/dev/" + child['name']
+        volume_serial = volumeid.replace("-", "")
+        for device in devices["blockdevices"]:
+            if device["serial"] == volume_serial:
+                if "children" in device:
+                    for child in device["children"]:
+                        if child["mountpoint"] is None:
+                            blk_device = "/dev/" + child["name"]
                             break
-                if blk_device == None:
-                    blk_device = "/dev/" + device['name']
+                if blk_device is None:
+                    blk_device = "/dev/" + device["name"]
                 break
-        if blk_device == None:
+        if blk_device is None:
             raise Exception
         self.device = blk_device
 
@@ -128,12 +128,12 @@ class FsHandler:
         :param volumeid: Volume to be mounted
         :type volumeid: string
         """
-        self.__wait_for_device_settle()
+        FsHandler.wait_for_device_settle()
         try:
             self.__update_device_name(volumeid)
-        except Exception as e:
-            print(f"Unable to find device to mount.", file=sys.stderr)
-            raise e
+        except Exception as ex:
+            print("Unable to find device to mount.", file=sys.stderr)
+            raise ex
         if self.verbose > 1:
             print(f"Mounting '{self.device}' at '{self.mount_point}'")
         subprocess.call(["mount", "--source", self.device, "--target",
@@ -161,7 +161,7 @@ class FsHandler:
         :param boot: Make the primary partition bootable
         :type boot: boolean
         """
-        self.__wait_for_device_settle()
+        self.wait_for_device_settle()
         if boot:
             bootable = ", bootable"
         else:
@@ -169,9 +169,9 @@ class FsHandler:
         self.__update_device_name(volume_id)
         if self.verbose > 2:
             print(f"Partitioning device {self.device}")
-        disk_process = Popen(["sfdisk", self.device], stdin=PIPE)
-        disk_process.communicate(input=str.encode("label: dos\ntype=83" + bootable + "\n"))
-        self.__wait_for_device_settle()
+        with Popen(["sfdisk", self.device], stdin=PIPE) as disk_process:
+            disk_process.communicate(input=str.encode("label: dos\ntype=83" + bootable + "\n"))
+        self.wait_for_device_settle()
         self.__update_device_name(volume_id)
         if self.verbose > 2:
             print(f"Formating device {self.device} with ext4")
@@ -189,7 +189,7 @@ class FsHandler:
         :type tar_location: string
         """
         print(f"Untaring file '{tar_location}' to '{self.mount_point}'")
-        if self.untar_process == None:
+        if self.untar_process is None:
             tar_options = ["tar", "--extract", "--directory", self.mount_point,
                            "--preserve-permissions", "--preserve-order"]
             if ".tar.gz" in tar_location:
@@ -218,13 +218,13 @@ class FsHandler:
         if ".tar.gz" in tar_location:
             tar_options.append("--gzip")
         tar_options.extend(["--file", tar_location])
-        untar_process = Popen(tar_options, stdout=PIPE, stderr=PIPE)
-        response = untar_process.communicate()
-        if untar_process.returncode != 0:
-            output = response[0].decode('UTF-8').strip()
-            error = response[1].decode('UTF-8').strip()
-            print(f"Untar failed: {output}\n{error}.", file=sys.stderr)
-            raise Exception("Tar failed")
+        with Popen(tar_options, stdout=PIPE, stderr=PIPE) as untar_process:
+            response = untar_process.communicate()
+            if untar_process.returncode != 0:
+                output = response[0].decode("UTF-8").strip()
+                error = response[1].decode("UTF-8").strip()
+                print(f"Untar failed: {output}\n{error}.", file=sys.stderr)
+                raise Exception("Tar failed")
         os.unlink(tar_location)
 
     def terminate_tar(self):
@@ -278,7 +278,7 @@ class FsHandler:
 
         Update the LABEL of volume or UUID in fstab
         """
-        with open(f"{self.mount_point}/etc/fstab", "r") as fstab_file:
+        with open(f"{self.mount_point}/etc/fstab", "r", encoding="UTF-8") as fstab_file:
             fstab = fstab_file.readline()
         fstab_pattern = r"((?:UUID)|(?:LABEL))=([0-9a-z\-]+)\s+((?:\/boot)|(?:\/))\s+(ext(?:[2-4]))"
         results = re.findall(fstab_pattern, fstab, re.RegexFlag.IGNORECASE)
@@ -288,16 +288,16 @@ class FsHandler:
             if self.verbose > 1:
                 print("The old snapshot was mounted using UUID=" +
                       results[0][1])
-            blkid_process = Popen(["blkid", "--output", "export", self.device],
-                                  stdout=PIPE)
-            blkid_response = blkid_process.communicate()[0].decode('UTF-8').strip()
+            with Popen(["blkid", "--output", "export",
+                    self.device], stdout=PIPE) as blkid_process:
+                blkid_response = blkid_process.communicate()[0].decode("UTF-8").strip()
             blkid_pattern = r"^UUID=([0-9a-z\-]+)$"
             blkid_uuid = re.findall(blkid_pattern, blkid_response,
                                     re.RegexFlag.IGNORECASE | re.RegexFlag.MULTILINE)[0]
             if self.verbose > 1:
                 print("New UUID of volume=" + blkid_uuid)
             new_fstab = fstab.replace(results[0][1], blkid_uuid)
-            with open(f"{self.mount_point}/etc/fstab", "w") as fstab_file:
+            with open(f"{self.mount_point}/etc/fstab", "w", encoding="UTF-8") as fstab_file:
                 fstab_file.write(new_fstab)
         elif results[0][0].lower() == "label":
             label = results[0][1]
@@ -305,8 +305,8 @@ class FsHandler:
                 print(f"The old snapshot was mounted using LABEL={label}")
             subprocess.call(["e2label", self.device, label])
             time.sleep(1)
-            e2label_process = Popen(["e2label", self.device], stdout=PIPE)
-            response = e2label_process.communicate()[0].decode('UTF-8').strip()
+            with Popen(["e2label", self.device], stdout=PIPE) as e2label_process:
+                response = e2label_process.communicate()[0].decode("UTF-8").strip()
             if response != label:
                 raise Exception("Unable to change the volume label to " +
                                 f"'{label}'")
@@ -325,7 +325,9 @@ class FsHandler:
         :return: Size of the mounted partition in bytes
         :rtype: int
         """
-        df_process = Popen(["/bin/df", "--sync", "-k", "--local",
-                            "--output=used", self.mount_point], stdout=PIPE)
-        return int(
-            (df_process.communicate()[0].decode('UTF-8').strip().split('\n'))[1]) * 1024
+        retval = 0
+        with Popen(["/bin/df", "--sync", "-k", "--local", "--output=used",
+                self.mount_point], stdout=PIPE) as df_process:
+            retval = int(
+                (df_process.communicate()[0].decode("UTF-8").strip().split("\n"))[1]) * 1024
+        return retval

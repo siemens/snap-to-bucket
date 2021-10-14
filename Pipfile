@@ -12,3 +12,4 @@ snap-to-bucket = {path = "."}
 [dev-packages]
 sphinx = "*"
 snap-to-bucket = {editable = true, path = "."}
+pylint = "*"

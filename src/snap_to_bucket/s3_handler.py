@@ -6,7 +6,7 @@ SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra <mishra.gaurav@siemens.co
 
 SPDX-License-Identifier: MIT
 """
-__author__ = 'Siemens AG'
+__author__ = "Siemens AG"
 
 import gc
 import os
@@ -23,7 +23,7 @@ import psutil
 from botocore.exceptions import ClientError
 
 
-class ProgressPercentage(object):
+class ProgressPercentage:
     """
     Progress percentage printer
     """
@@ -80,13 +80,15 @@ class S3Handler:
         :param verbose: Verbosity level (0-3)
         :type verbose: integer
         """
-        self.s3client = boto3.client('s3')
+        self.s3client = boto3.client("s3")
         self.bucket = bucket
         self.__check_bucket_accessiblity(bucket)
         self.split_size = split_size
         self.gzip = gzip
         self.storage_class = storage_class
         self.verbose = verbose
+        self.temp_download = None
+        self.restore_partition_size = 0
 
     def __check_bucket_accessiblity(self, bucket):
         """
@@ -99,11 +101,11 @@ class S3Handler:
         """
         try:
             response = self.s3client.head_bucket(Bucket=bucket)
-            if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+            if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
                 raise Exception
-        except Exception as e:
+        except Exception as ex:
             print(f"Unable to access bucket '{bucket}'", file=sys.stderr)
-            raise e
+            raise ex
 
     def __get_object_count(self, key):
         """
@@ -125,25 +127,26 @@ class S3Handler:
         try:
             response = self.s3client.list_objects_v2(Bucket=self.bucket,
                                                     Prefix=key)
-            if response['ResponseMetadata']['HTTPStatusCode'] != 200 or 'Contents' not in response:
+            if response["ResponseMetadata"]["HTTPStatusCode"] != 200 or "Contents" not in response:
                 raise Exception
-            objects = [o for o in response['Contents']]
+            objects = list(response["Contents"])
             response = self.s3client.head_object(Bucket=self.bucket,
-                                                 Key=objects[0]['Key'])
+                                                 Key=objects[0]["Key"])
             partition_size = 0
-            if 'x-amz-meta-disc-size' in response['Metadata']:
+            if "x-amz-meta-disc-size" in response["Metadata"]:
                 partition_size = int(
-                    response['Metadata']['x-amz-meta-disc-size'])
+                    response["Metadata"]["x-amz-meta-disc-size"])
             if partition_size < 2:
-                partition_size = sum([int(o['Size']) for o in objects])
+                partition_size = sum([int(o["Size"]) for o in objects])
             self.restore_partition_size = partition_size
             return len(objects)
-        except Exception as e:
+        except Exception as ex:
             print(f"Unable to access key '{key}' in bucket '{self.bucket}'",
                   file=sys.stderr)
-            raise e
+            raise ex
 
-    def __byte_checksum(self, data):
+    @staticmethod
+    def byte_checksum(data):
         """
         Calculate the checksum for the given bytes
 
@@ -155,7 +158,7 @@ class S3Handler:
         """
         md_obj = hashlib.md5()
         md_obj.update(data)
-        return base64.b64encode(md_obj.digest()).decode('UTF-8').strip()
+        return base64.b64encode(md_obj.digest()).decode("UTF-8").strip()
 
     def __get_key_uploadid(self, snapshot, size, partno):
         """
@@ -171,24 +174,24 @@ class S3Handler:
         :return: S3 key and uploadid for the snapshot
         :rtype: list()
         """
-        meta_data = dict()
-        content_type = 'application/x-tar'
-        timestr = datetime.now().isoformat(timespec='seconds')
-        created = snapshot['created'].isoformat(timespec='seconds')
-        name = snapshot['name'].replace(' ', '+').replace('/', '_')
+        meta_data = {}
+        content_type = "application/x-tar"
+        timestr = datetime.now().isoformat(timespec="seconds")
+        created = snapshot["created"].isoformat(timespec="seconds")
+        name = snapshot["name"].replace(" ", "+").replace("/", "_")
         key = f"snap/{name}/{snapshot['id']}-{created}-{timestr}"
-        meta_data["creation-time"] = snapshot['created'].isoformat()
+        meta_data["creation-time"] = snapshot["created"].isoformat()
         meta_data["snap-volume-size"] = f"{snapshot['volumesize']} GiB"
         if partno == -1:
             key = f"{key}.tar"
             if self.gzip:
                 key = f"{key}.gz"
-                content_type = 'application/gzip'
+                content_type = "application/gzip"
         else:
             key = f"{key}-part{partno}.tar"
             if self.gzip:
                 key = f"{key}.gz"
-                content_type = 'application/gzip'
+                content_type = "application/gzip"
         if size > 1:
             meta_data["x-amz-meta-disc-size"] = str(size)
         res = self.s3client.create_multipart_upload(
@@ -198,7 +201,7 @@ class S3Handler:
             Metadata=meta_data,
             StorageClass=self.storage_class
         )
-        return (key, res['UploadId'])
+        return (key, res["UploadId"])
 
     def initiate_upload(self, snapshot, path, size=0):
         """
@@ -285,7 +288,7 @@ class S3Handler:
         """
         tar_read_bytes = 0
         upload_partid = 1
-        parts_info = list()
+        parts_info = []
         more_to_read = True
         print(f"Uploading {key} to {self.bucket} bucket")
         while True:
@@ -309,20 +312,20 @@ class S3Handler:
                                              upload_id)
                 del inline
                 parts_info.append({
-                    'ETag': resp['ETag'],
-                    'PartNumber': upload_partid
+                    "ETag": resp["ETag"],
+                    "PartNumber": upload_partid
                 })
                 if self.verbose > 0:
-                    print(f"Part # {upload_partid}, ", end='')
+                    print(f"Part # {upload_partid}, ", end="")
                 print("Uploaded " +
                       str(round(uploaded_bytes / (1024 ** 2), 2)) +
                       " MiB (total) ", end="\r")
                 upload_partid += 1
                 gc.collect()
-                if (tar_read_bytes >= self.split_size):
+                if tar_read_bytes >= self.split_size:
                     # One split upload completed
                     break
-            except Exception as e:
+            except Exception as ex:
                 print("\nMultipart upload failed. Trying to abort",
                       file=sys.stderr)
                 inline = None # Safely drop the data
@@ -331,7 +334,7 @@ class S3Handler:
                     Key=key,
                     UploadId=upload_id
                 )
-                raise e
+                raise ex
         self.__complete_upload(key, upload_id, parts_info)
         return uploaded_bytes, more_to_read
 
@@ -362,7 +365,7 @@ class S3Handler:
             return self.s3client.upload_part(
                 Body=body,
                 Bucket=self.bucket,
-                ContentMD5=self.__byte_checksum(body),
+                ContentMD5=S3Handler.byte_checksum(body),
                 Key=key,
                 PartNumber=part_id,
                 UploadId=upload_id
@@ -404,7 +407,7 @@ class S3Handler:
                 Bucket=self.bucket,
                 Key=key,
                 MultipartUpload={
-                    'Parts': partlist
+                    "Parts": partlist
                 },
                 UploadId=uploadid
             )
@@ -453,29 +456,29 @@ class S3Handler:
         """
         response = self.s3client.list_objects_v2(Bucket=self.bucket,
                                                  Prefix=key)
-        keys = [o['Key'] for o in response['Contents']]
+        keys = [o["Key"] for o in response["Contents"]]
         download_key_name = None
         if partno == -1:
             download_key_name = keys[0]
         else:
-            for key in keys:
-                if f"-part{partno}.tar" in key:
-                    download_key_name = key
+            for dkey in keys:
+                if f"-part{partno}.tar" in dkey:
+                    download_key_name = dkey
                     break
-        if download_key_name == None:
+        if download_key_name is None:
             raise Exception(f"Unable to find part '{partno}' under key {key}")
         self.temp_download = os.path.join(restore_dir, download_key_name)
         os.makedirs(os.path.dirname(self.temp_download), exist_ok=True)
         size = self.s3client.head_object(Bucket=self.bucket,
-                                         Key=download_key_name)['ContentLength']
+                                         Key=download_key_name)["ContentLength"]
         progress = ProgressPercentage(key, size)
         try:
             self.s3client.download_file(self.bucket, download_key_name,
                                         self.temp_download, Callback=progress)
             print()
-        except Exception as e:
+        except Exception as ex:
             print(f"Failed while downloading s3://{self.bucket}/{download_key_name}",
                   file=sys.stderr)
             os.remove(self.temp_download)
-            raise e
+            raise ex
         return self.temp_download

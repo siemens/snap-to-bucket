@@ -27,7 +27,7 @@ def read(fname):
     Returns:
         content (string): Content of the file
     """
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+    return open(os.path.join(os.path.dirname(__file__), fname), encoding='UTF-8').read()
 
 
 metadata = dict(
