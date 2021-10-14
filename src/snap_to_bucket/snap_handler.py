@@ -33,6 +33,8 @@ class SnapToBucket:
     :ivar split_size: Size in bytes to split tar at
     :ivar gzip: True to compress tar with gzip
     :ivar restore_dir: Location to store S3 object for restore
+    :ivar iops: IOPS for supported volumes
+    :ivar throughput: Throughput for supported volumes
     """
 
     def __init__(self, bucket, tag="snap-to-bucket", verbose=0,
@@ -44,27 +46,27 @@ class SnapToBucket:
         Initializer for the class attributes.
 
         :param bucket: Bucket to use
-        :type bucket: string
+        :type bucket: str
         :param tag: Tag of snapshots for filtering
-        :type tag: string
+        :type tag: str
         :param verbose: Verbosity level (0-3)
-        :type verbose: integer
+        :type verbose: int
         :param volume_type: Type of new EBS volume to use
-        :type volume_type: string
+        :type volume_type: str
         :param storage_class: Storage class of S3 object
-        :type storage_class: string
+        :type storage_class: str
         :param mount_point: Mount point to mount new volumes to
-        :type mount_point: string
+        :type mount_point: str
         :param delete_snap: True to delete snapshot after migration
         :type delete_snap: boolean
         :param restore: Is this a restore request?
         :type restore: boolean
         :param restore_key: Key of the tar to be restored
-        :type restore_key: string
+        :type restore_key: str
         :param restore_boot: Was the snapshot, being restored, bootable?
         :type restore_boot: boolean
         :param restore_dir: Location to store S3 object for restore
-        :type restore_dir: string
+        :type restore_dir: str
         """
         self.__bucket = bucket
         self.__tag = tag
@@ -87,6 +89,8 @@ class SnapToBucket:
         self.__restore_dir = restore_dir
         self.__split_size = 5 * 1024.0 * 1024.0 * 1024.0 * 1024.0
         self.__gzip = False
+        self.__iops = None
+        self.__throughput = None
 
     def update_proxy(self, proxy=None, noproxy=None):
         """
@@ -124,12 +128,31 @@ class SnapToBucket:
         """
         self.__gzip = True
 
+    def update_iops(self, iops):
+        """
+        Update the IOPS of the volume
+
+        :param iops: New IOPS value
+        :type iops: int
+        """
+        self.__iops = int(iops)
+
+    def update_throughput(self, throughput):
+        """
+        Update the throughput of the volume
+
+        :param throughput: New throughput value
+        :type throughput: int
+        """
+        self.__throughput = int(throughput)
+
     def initiate_migration(self):
         """
         The brains of the process
         """
         self.__ec2handler = Ec2Handler(self.__tag, self.__volume_type,
-                                       self.__verbose)
+                                       self.__verbose, self.__iops,
+                                       self.__throughput)
         self.__s3handler = S3Handler(self.__bucket, self.__split_size,
                                      self.__gzip, self.__storage_class,
                                      self.__verbose)
@@ -182,7 +205,7 @@ class SnapToBucket:
         :type snap: dict()
 
         :return: Newly created volume ID
-        :rtype: string
+        :rtype: str
         """
         volumeid = self.__ec2handler.create_volume(snap)
         self.__ec2handler.attach_volume(volumeid)
@@ -195,7 +218,7 @@ class SnapToBucket:
         :param snapshot: Snapshot to be uploaded
         :type snapshot: dict()
         :param size: Size of the mounted partition
-        :type size: integer
+        :type size: int
         """
         self.__s3handler.initiate_upload(snapshot, self.__mount_point, size)
 

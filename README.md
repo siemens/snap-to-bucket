@@ -133,41 +133,41 @@ Since the S3 has a limit on object size, a single split can not be larger than
 ### Options
 
 ```
-usage: snap_to_bucket [-h] [-v] -b BUCKET [--proxy PROXY] [--noproxy NOPROXY]
-                      [-t TAG] [--type {standard,io1,gp2,gp3,sc1,st1}]
-                      [--storage-class {STANDARD,REDUCED_REDUNDANCY,STANDARD_IA,ONEZONE_IA,GLACIER,INTELLIGENT_TIERING,DEEP_ARCHIVE}]
-                      [-m DIR] [-d] [-s SIZE] [-g] [-r] [-k KEY] [--boot]
-                      [--restore-dir RESTORE_DIR]
+Usage: snap_to_bucket [OPTIONS]
 
-snap_to_bucket is a simple tool based on boto3 to move snapshots to S3 buckets
+  snap_to_bucket is a simple tool based on boto3 to move snapshots to S3
+  buckets.
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --verbose         increase output verbosity (-vvv for more verbosity)
-  -b BUCKET, --bucket BUCKET
-                        S3 bucket to push snaps in
-  --proxy PROXY         proxy to be used
-  --noproxy NOPROXY     comma separated list of domains which do not require
-                        proxy
-  -t TAG, --tag TAG     tag on snapshots (default: snap-to-bucket)
-  --type {standard,io1,gp2,gp3,sc1,st1}
-                        volume type (default: gp2)
-  --storage-class {STANDARD,REDUCED_REDUNDANCY,STANDARD_IA,ONEZONE_IA,GLACIER,INTELLIGENT_TIERING,DEEP_ARCHIVE}
-                        storage class for S3 objects (default: STANDARD)
-  -m DIR, --mount DIR   mount point for disks (default: /mnt/snaps)
-  -d, --delete          delete snapshot after transfer. Use with caution!
-                        (default: False)
-  -s SIZE, --split SIZE
-                        split tar in chunks no bigger than (allowed suffix
-                        b,k,m,g,t) (default: 5t)
-  -g, --gzip            compress tar with gzip
-  -r, --restore         restore a snapshot
-  -k KEY, --key KEY     key of the snapshot folder to restore (required if
-                        restoring)
-  --boot                was the snapshot a bootable volume?
-  --restore-dir RESTORE_DIR
-                        directory to store S3 objects for restoring (default:
-                        /tmp/snap-to-bucket)
+Options:
+  --version                       Show the version and exit.
+  -v, --verbose                   increase output verbosity (-vvv for more
+                                  verbosity)  [x>=0]
+  --proxy http_proxy              proxy to be used
+  --noproxy no_proxy              comma separated list of domains which do not
+                                  require proxy
+  -b, --bucket BUCKET             S3 bucket to push snaps in  [required]
+  -t, --tag TAG                   tag on snapshots  [default: snap-to-bucket]
+  --type [standard|io1|io2|gp2|gp3|sc1|st1]
+                                  volume type  [default: gp2]
+  --iops INTEGER                  volume IOPS, valid only for gp3, io1 and io2
+  --throughput THROUGHPUT         volume throughput in MiB/s. Valid only for
+                                  gp3 volumes  [125<=x<=1000]
+  --storage-class [STANDARD|REDUCED_REDUNDANCY|STANDARD_IA|ONEZONE_IA|GLACIER|INTELLIGENT_TIERING|DEEP_ARCHIVE]
+                                  storage class for S3 objects  [default:
+                                  STANDARD]
+  -m, --mount DIR                 mount point for disks  [default: /mnt/snaps]
+  -d, --delete                    delete snapshot after transfer. Use with
+                                  caution!  [default: False]
+  -s, --split SIZE                split tar in chunks no bigger than (allowed
+                                  suffix b,k,m,g,t)  [default: 5t]
+  -g, --gzip                      compress tar with gzip
+  -r, --restore                   restore a snapshot
+  -k, --key TEXT                  key of the snapshot folder to restore
+                                  (required if restoring)
+  --boot                          was the snapshot a bootable volume?
+  --restore-dir DIRECTORY         directory to store S3 objects for restoring
+                                  [default: /tmp/snap-to-bucket]
+  -h, --help                      Show this message and exit.
 ```
 
 ### Files on S3

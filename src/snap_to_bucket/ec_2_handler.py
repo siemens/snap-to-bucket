@@ -27,9 +27,12 @@ class Ec2Handler:
     :ivar verbose: Verbosity level (0-3)
     :ivar instance_info: Current instance info by 169.254.169.254
     :ivar ec2client: EC2 client from boto3
+    :ivar iops: IOPS for supported volumes
+    :ivar throughput: Throughput for supported volumes
     """
 
-    def __init__(self, tag="snap-to-bucket", volume_type="gp2", verbose=0):
+    def __init__(self, tag="snap-to-bucket", volume_type="gp2", verbose=0,
+                 iops=None, throughput=None):
         """
         Initializer for the class attributes.
 
@@ -38,15 +41,21 @@ class Ec2Handler:
         region.
 
         :param tag: Tag for snapshots
-        :type tag: string
+        :type tag: str
         :param volume_type: Volume type on EC2
-        :type volume_type: string
+        :type volume_type: str
         :param verbose: Verbosity level (0-3)
-        :type verbose: integer
+        :type verbose: int
+        :param iops: IOPS for supported volumes
+        :type iops: int
+        :param throughput: Throughput for supported volumes
+        :type throughput: int
         """
         self.tag = tag
         self.volume_type = volume_type
         self.verbose = verbose
+        self.iops = iops
+        self.throughput = throughput
         try:
             response = urllib.request.urlopen('http://169.254.169.254/latest/dynamic/instance-identity/document/')
         except urllib.error.URLError as e:
@@ -120,15 +129,22 @@ class Ec2Handler:
         :type snapshot: dict()
 
         :return: ID of newly created volume
-        :rtype: string
+        :rtype: str
         :raises botocore.exceptions.WaiterError: If the volume creation failed,
             try to delete it and raise exception
         """
+        arguments = {
+            'AvailabilityZone': self.instance_info['availabilityZone'],
+            'Encrypted': False,
+            'SnapshotId': snapshot['id'],
+            'VolumeType': self.volume_type
+        }
+        if self.iops is not None:
+            arguments['Iops'] = self.iops
+        if self.throughput is not None:
+            arguments['Throughput'] = self.throughput
         volumeid = self.ec2client.create_volume(
-            AvailabilityZone=self.instance_info['availabilityZone'],
-            Encrypted=False,
-            SnapshotId=snapshot['id'],
-            VolumeType=self.volume_type,
+            **arguments,
             TagSpecifications=[{
                 'ResourceType': 'volume',
                 'Tags': [
@@ -167,10 +183,10 @@ class Ec2Handler:
         ``snap-to-bucket-%Y-%m-%d_%H-%M-%S-%f``
 
         :param size: Size of the volume in bytes
-        :type size: integer
+        :type size: int
 
         :return: ID of newly created volume
-        :rtype: string
+        :rtype: str
         :raises botocore.exceptions.WaiterError: If the volume creation failed,
             try to delete it and raise exception
         """
@@ -178,11 +194,18 @@ class Ec2Handler:
         if vol_size < 1:
             vol_size = 1
         timestr = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
+        arguments = {
+            'AvailabilityZone': self.instance_info['availabilityZone'],
+            'Encrypted': False,
+            'Size': round(vol_size),
+            'VolumeType': self.volume_type
+        }
+        if self.iops is not None:
+            arguments['Iops'] = self.iops
+        if self.throughput is not None:
+            arguments['Throughput'] = self.throughput
         volumeid = self.ec2client.create_volume(
-            AvailabilityZone=self.instance_info['availabilityZone'],
-            Encrypted=False,
-            Size=round(vol_size),
-            VolumeType=self.volume_type,
+            **arguments,
             TagSpecifications=[{
                 'ResourceType': 'volume',
                 'Tags': [
@@ -216,7 +239,7 @@ class Ec2Handler:
         Wait till volume is ready
 
         :param volumeid: Volume id to wait for
-        :type volumeid: string
+        :type volumeid: str
 
         :raises botocore.exceptions.WaiterError: If the volume creation failed
         """
@@ -234,7 +257,7 @@ class Ec2Handler:
         Wait till volume is attached to instance
 
         :param volumeid: Volume id to wait for
-        :type volumeid: string
+        :type volumeid: str
 
         :raises botocore.exceptions.WaiterError: If the volume attachment failed
         """
@@ -248,7 +271,7 @@ class Ec2Handler:
         Wait till volume is deleted
 
         :param volumeid: Volume id to wait for
-        :type volumeid: string
+        :type volumeid: str
 
         :raises botocore.exceptions.WaiterError: If the volume deletion failed
         """
@@ -262,7 +285,7 @@ class Ec2Handler:
         Attach given volume to current instance
 
         :param volumeid: Volume id to attach
-        :type volumeid: string
+        :type volumeid: str
 
         :raises botocore.exceptions.WaiterError: If the volume attachment failed,
             try to delete it and raise exception
@@ -293,7 +316,7 @@ class Ec2Handler:
         Detach given volume from current instance
 
         :param volumeid: Volume id to detach
-        :type volumeid: string
+        :type volumeid: str
 
         :raises botocore.exceptions.WaiterError: If the volume detachment failed
         """
@@ -320,7 +343,7 @@ class Ec2Handler:
         Deletes a volume
 
         :param volumeid: Volume id to be deleted
-        :type volumeid: string
+        :type volumeid: str
 
         :raises botocore.exceptions.WaiterError: If the volume deletion failed
         """

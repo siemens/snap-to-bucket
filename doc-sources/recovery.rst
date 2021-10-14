@@ -9,8 +9,8 @@ Manually
 #. Create a new volume of the desired size in AWS and attach to an instance.
     * You can also check for ``x-amz-meta-disc-size`` metadata attached to the S3
       object to get the estimated size of unpacked files.
-    * The meta tag `snap-volume-size` also stores the size of volume from which
-      the snapshot was created.
+    * The meta tag ``snap-volume-size`` also stores the size of volume from
+      which the snapshot was created.
 
 #. Download the snapshot from S3 to the instance.
 
