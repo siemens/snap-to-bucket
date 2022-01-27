@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-SPDX-FileCopyrightText: Siemens AG, 2020-2021 Gaurav Mishra <mishra.gaurav@siemens.com>
+SPDX-FileCopyrightText: Siemens AG, 2020-2022 Gaurav Mishra <mishra.gaurav@siemens.com>
 
 SPDX-License-Identifier: MIT
 """
@@ -32,7 +32,7 @@ def read(fname):
 
 metadata = dict(
     name="snap_to_bucket",
-    version="1.0.2",
+    version="1.0.4",
     author="Gaurav Mishra",
     author_email="mishra.gaurav@siemens.com",
     description=("Move AWS EBS Snapshots to S3 Buckets"),
@@ -65,7 +65,7 @@ metadata = dict(
     ],
     entry_points = {
         'console_scripts': [
-            'snap_to_bucket = snap_to_bucket.run:main'
+            'snap2bucket = snap_to_bucket.run:main'
         ]
     },
 )

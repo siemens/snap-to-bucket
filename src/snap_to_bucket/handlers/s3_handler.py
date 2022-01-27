@@ -137,7 +137,7 @@ class S3Handler:
                 partition_size = int(
                     response["Metadata"]["x-amz-meta-disc-size"])
             if partition_size < 2:
-                partition_size = sum([int(o["Size"]) for o in objects])
+                partition_size = sum((int(o["Size"]) for o in objects))
             self.restore_partition_size = partition_size
             return len(objects)
         except Exception as ex:

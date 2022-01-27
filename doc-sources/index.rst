@@ -11,10 +11,19 @@ This tool allows to move data from AWS snapshots to S3 buckets.
 Installation
 =======================
 
+* From source code
+
 .. code-block:: bash
 
+    $ git clone https://github.com/siemens/snap-to-bucket.git
+    $ cd snap-to-bucket
     $ python3 -m pip install -U pipenv
     $ pipenv install --dev --editable .
+
+* From PyPi
+
+.. code-block:: bash
+    $ python3 -m pip install -U snap-to-bucket
 
 Requirements
 ===============
@@ -95,10 +104,9 @@ Options
 
 .. code-block::
 
-    Usage: snap_to_bucket [OPTIONS]
+    Usage: snap2bucket [OPTIONS]
 
-      snap_to_bucket is a simple tool based on boto3 to move snapshots to S3
-      buckets.
+      snap2bucket is a simple tool based on boto3 to move snapshots to S3 buckets.
 
     Options:
       --version                       Show the version and exit.

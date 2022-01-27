@@ -60,13 +60,13 @@ Run the script with ``-r\--restore`` flag and provide the bucket and the key.
 
 .. code-block:: bash
 
-    pipenv run snap_to_bucket --restore --bucket <bucket> --key <key>
+    pipenv run snap2bucket --restore --bucket <bucket> --key <key>
 
 * Runing from install
 
 .. code-block:: bash
 
-    snap_to_bucket --restore --bucket <bucket> --key <key>
+    snap2bucket --restore --bucket <bucket> --key <key>
 
 **Note:** The script will create new volume of size 25% more than the size of
 tar or ``x-amz-meta-disc-size`` metadata (if available).

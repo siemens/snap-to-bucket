@@ -13,3 +13,7 @@ snap-to-bucket = {path = "."}
 sphinx = "*"
 snap-to-bucket = {editable = true, path = "."}
 pylint = "*"
+
+[scripts]
+build_packages = "python3 ./setup.py sdist bdist_wheel"
+check_package = "python3 ./setup.py check"
