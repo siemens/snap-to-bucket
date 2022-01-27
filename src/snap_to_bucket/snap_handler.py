@@ -6,7 +6,7 @@ SPDX-FileCopyrightText: Siemens AG, 2020 Gaurav Mishra <mishra.gaurav@siemens.co
 
 SPDX-License-Identifier: MIT
 """
-__author__ = 'Siemens AG'
+__author__ = "Siemens AG"
 
 import os
 import sys
@@ -71,13 +71,13 @@ class SnapToBucket:
         self.__bucket = bucket
         self.__tag = tag
         self.__verbose = verbose
-        if volume_type in ['standard', 'io1', 'gp2', 'gp3', 'sc1', 'st1']:
+        if volume_type in ["standard", "io1", "gp2", "gp3", "sc1", "st1"]:
             self.__volume_type = volume_type
         else:
             raise Exception(f"Unrecognized volume type {volume_type} passed")
-        if storage_class in ['STANDARD', 'REDUCED_REDUNDANCY', 'STANDARD_IA',
-                             'ONEZONE_IA', 'GLACIER', 'INTELLIGENT_TIERING',
-                             'DEEP_ARCHIVE']:
+        if storage_class in ["STANDARD", "REDUCED_REDUNDANCY", "STANDARD_IA",
+                             "ONEZONE_IA", "GLACIER", "INTELLIGENT_TIERING",
+                             "DEEP_ARCHIVE"]:
             self.__storage_class = storage_class
         else:
             raise Exception(f"Unrecognized storage class {storage_class} passed")
@@ -91,27 +91,31 @@ class SnapToBucket:
         self.__gzip = False
         self.__iops = None
         self.__throughput = None
+        self.__ec2handler = None
+        self.__s3handler = None
+        self.__fshandler = None
 
-    def update_proxy(self, proxy=None, noproxy=None):
+    @staticmethod
+    def update_proxy(proxy=None, noproxy=None):
         """
         Update the http_proxy and no_proxy environment variables
         """
-        if proxy != None:
-            os.environ['http_proxy'] = proxy
-            os.environ['https_proxy'] = proxy
+        if proxy is not None:
+            os.environ["http_proxy"] = proxy
+            os.environ["https_proxy"] = proxy
         else:
-            if 'http_proxy' not in os.environ and 'HTTP_PROXY' in os.environ:
-                os.environ['http_proxy'] = os.environ['HTTP_PROXY']
-            if 'https_proxy' not in os.environ and 'HTTPS_PROXY' in os.environ:
-                os.environ['https_proxy'] = os.environ['HTTPS_PROXY']
-        if noproxy != None:
-            os.environ['no_proxy'] = noproxy
+            if "http_proxy" not in os.environ and "HTTP_PROXY" in os.environ:
+                os.environ["http_proxy"] = os.environ["HTTP_PROXY"]
+            if "https_proxy" not in os.environ and "HTTPS_PROXY" in os.environ:
+                os.environ["https_proxy"] = os.environ["HTTPS_PROXY"]
+        if noproxy is not None:
+            os.environ["no_proxy"] = noproxy
         else:
-            if 'no_proxy' not in os.environ and 'NO_PROXY' in os.environ:
-                os.environ['no_proxy'] = os.environ['NO_PROXY']
+            if "no_proxy" not in os.environ and "NO_PROXY" in os.environ:
+                os.environ["no_proxy"] = os.environ["NO_PROXY"]
 
-        if 'no_proxy' in os.environ and "169.254.169.254" not in os.environ['no_proxy']:
-            os.environ['no_proxy'] = os.environ['no_proxy'] + ",169.254.169.254"
+        if "no_proxy" in os.environ and "169.254.169.254" not in os.environ["no_proxy"]:
+            os.environ["no_proxy"] = os.environ["no_proxy"] + ",169.254.169.254"
 
     def update_split_size(self, split):
         """
@@ -158,8 +162,8 @@ class SnapToBucket:
                                      self.__verbose)
         self.__fshandler = FsHandler(self.__mount_point, self.__verbose)
         os.makedirs(self.__mount_point, exist_ok=True)
-        if self.__restore == True:
-            if self.__restore_key == None:
+        if self.__restore is True:
+            if self.__restore_key is None:
                 raise Exception("missing key argument for restore")
             os.makedirs(self.__restore_dir, exist_ok=True)
             if not os.access(self.__restore_dir, os.W_OK):
@@ -180,11 +184,11 @@ class SnapToBucket:
                 self.__fshandler.mount_volume(volumeid)
                 size = self.__fshandler.get_mounted_disc_size()
                 self.__move_data(snapshot, size)
-            except Exception as e:
+            except Exception as ex:
                 print("Error occurred during S3 upload for snapshot '" +
-                      snapshot['id'] + "'", file=sys.stderr)
+                      snapshot["id"] + "'", file=sys.stderr)
                 print(f"Deleting volume '{volumeid}'", file=sys.stderr)
-                raise e
+                raise ex
             finally:
                 self.__fshandler.unmount_volume()
                 self.__ec2handler.detach_volume(volumeid)
