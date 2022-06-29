@@ -11,9 +11,9 @@ __author__ = "Siemens AG"
 import os
 import sys
 
-from snap_to_bucket import Ec2Handler
-from snap_to_bucket import S3Handler
-from snap_to_bucket import FsHandler
+from snap_to_bucket.handlers import Ec2Handler
+from snap_to_bucket.handlers import S3Handler
+from snap_to_bucket.handlers import FsHandler
 
 
 class SnapToBucket:

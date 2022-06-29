@@ -1,14 +1,23 @@
 # snap_to_bucket
 
 ![snap_to_bucket docs](https://github.com/siemens/snap-to-bucket/workflows/snap_to_bucket%20docs/badge.svg)
+[![PyPI version](https://badge.fury.io/py/snap-to-bucket.svg)](https://badge.fury.io/py/snap-to-bucket)
 
 This tool allows to move data from AWS snapshots to S3 buckets.
 
 ### Installation
 
+#### Local installation
 ```console
+$ git clone https://github.com/siemens/snap-to-bucket.git
+$ cd snap-to-bucket
 $ python3 -m pip install -U pipenv
 $ pipenv install --dev --editable .
+```
+
+#### PyPi
+```console
+$ python3 -m pip install -U snap-to-bucket
 ```
 
 ### Requirements
@@ -95,11 +104,11 @@ script needs to mount/unmount volumes.
 
 - Runing from source
 ```console
-# pipenv run snap_to_bucket --bucket <bucket>
+# pipenv run snap2bucket --bucket <bucket>
 ```
 - Runing from install
 ```console
-# snap_to_bucket --bucket <bucket>
+# snap2bucket --bucket <bucket>
 ```
 
 If you have used different tags on snapshots, use `-t\--tag` option.
@@ -133,10 +142,9 @@ Since the S3 has a limit on object size, a single split can not be larger than
 ### Options
 
 ```
-Usage: snap_to_bucket [OPTIONS]
+Usage: snap2bucket [OPTIONS]
 
-  snap_to_bucket is a simple tool based on boto3 to move snapshots to S3
-  buckets.
+  snap2bucket is a simple tool based on boto3 to move snapshots to S3 buckets.
 
 Options:
   --version                       Show the version and exit.
@@ -239,11 +247,11 @@ for i in /sys /proc /run /dev; do sudo umount /mnt/snapshot$i; done
 Run the script with `-r\--restore` flag and provide the bucket and the key.
 - Runing from source
 ```console
-# pipenv run snap_to_bucket --restore --bucket <bucket> --key <key>
+# pipenv run snap2bucket --restore --bucket <bucket> --key <key>
 ```
 - Runing from install
 ```console
-# snap_to_bucket --restore --bucket <bucket> --key <key>
+# snap2bucket --restore --bucket <bucket> --key <key>
 ```
 
 **Note:** The script will create new volume of size 25% more than the size of

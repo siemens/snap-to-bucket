@@ -26,13 +26,13 @@ script needs to mount/unmount volumes.
 
 .. code-block:: bash
 
-    pipenv run snap_to_bucket --bucket <bucket>
+    pipenv run snap2bucket --bucket <bucket>
 
 * Runing from install
 
 .. code-block:: bash
 
-    snap_to_bucket --bucket <bucket>
+    snap2bucket --bucket <bucket>
 
 If you have used different tags on snapshots, use ``-t/--tag`` option.
 

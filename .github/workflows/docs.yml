@@ -11,7 +11,7 @@ jobs:
       image: python:3.8-slim
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - name: Install host dependencies
         run: |
           apt-get -qq update

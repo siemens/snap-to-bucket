@@ -16,7 +16,7 @@ import math
 import click
 from pkg_resources import get_distribution
 
-from snap_to_bucket import SnapToBucket
+from snap_to_bucket.runner import SnapToBucket
 
 
 class VolSize(click.ParamType):
@@ -122,7 +122,7 @@ def main(verbose, proxy, noproxy, bucket, tag, type, storage_class, mount,
          delete, split, gzip, restore, key, boot, restore_dir, iops,
          throughput):
     """
-    snap_to_bucket is a simple tool based on boto3 to move snapshots to S3
+    snap2bucket is a simple tool based on boto3 to move snapshots to S3
     buckets.
     """
     if type not in ["gp3", "io1", "io2"] and iops is not None:

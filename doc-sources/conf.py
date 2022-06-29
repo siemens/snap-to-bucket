@@ -25,11 +25,11 @@ sys.path.insert(0, os.path.abspath('../src/'))
 # -- Project information -----------------------------------------------------
 
 project = 'snap_to_bucket'
-copyright = '2020-2021, Siemens AG'
+copyright = '2020-2022, Siemens AG'
 author = 'Gaurav Mishra <mishra.gaurav@siemens.com>'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+release = '1.0.4'
 
 
 # -- General configuration ---------------------------------------------------
