@@ -10,12 +10,16 @@ __author__ = "Siemens AG"
 
 import os
 import sys
+import http
 import json
 import math
 import urllib.request
 from datetime import datetime
 
 import boto3
+
+AWS_META_URL = "http://169.254.169.254/latest/dynamic/instance-identity/document/"
+AWS_TOKEN_URL = "http://169.254.169.254/latest/api/token"
 
 
 class Ec2Handler:
@@ -57,10 +61,14 @@ class Ec2Handler:
         self.iops = iops
         self.throughput = throughput
         try:
-            response = urllib.request.urlopen(
-                "http://169.254.169.254/latest/dynamic/instance-identity/document/")
+            response = urllib.request.urlopen(AWS_META_URL)
+        except urllib.error.HTTPError as ex:
+            if ex.code == http.client.UNAUTHORIZED:
+                response = self.get_info_from_imds2()
+            else:
+                raise ex
         except urllib.error.URLError as ex:
-            print("Script needs to run on an EC2 instance", file=sys.stderr)
+            print("Script needs to run on an EC2 instance!", file=sys.stderr)
             raise ex
         self.instance_info = json.loads(response.read().decode("UTF-8").strip())
         response.close()
@@ -69,6 +77,33 @@ class Ec2Handler:
                   "'")
         os.environ["AWS_DEFAULT_REGION"] = self.instance_info["region"]
         self.ec2client = boto3.client("ec2")
+
+    def get_info_from_imds2(self):
+        """
+        Try to get the instance from IMDSv2.
+
+        The function gets token from AWS and use it to authenticate call to
+        IMDSv2.
+
+        :return: Response from AWS meta data url
+        :raises urllib.error.URLError: If call fails
+        """
+        try:
+            if self.verbose > 0:
+                print("Unable to get instance info. Trying with IMDSv2.")
+            req = urllib.request.Request(AWS_TOKEN_URL,
+                headers={"X-aws-ec2-metadata-token-ttl-seconds": 60},
+                method="PUT")
+            response = urllib.request.urlopen(req)
+            token = response.read().decode("UTF-8").strip()
+            response.close()
+            req = urllib.request.Request(AWS_META_URL,
+                headers={"X-aws-ec2-metadata-token": token})
+            toreturn = urllib.request.urlopen(req)
+        except urllib.error.URLError as ex:
+            print("Script needs to run on an EC2 instance!", file=sys.stderr)
+            raise ex
+        return toreturn
 
     def get_snapshots(self):
         """
