@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 """
 
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 __author__ = 'Siemens AG'
 
@@ -56,8 +56,12 @@ metadata = dict(
         "aws", "snapshot", "bucket", "ebs", "s3"
     ],
     python_requires=">=3.5",
-    package_dir={"": "src"},
-    packages=["snap_to_bucket"],
+    package_dir={
+        "snap_to_bucket": "src/snap_to_bucket",
+        "snap_to_bucket.handlers": "src/snap_to_bucket/handlers",
+        "snap_to_bucket.runner": "src/snap_to_bucket/runner"
+    },
+    packages=find_packages("./src"),
     install_requires=[
         'boto3',
         'psutil',
